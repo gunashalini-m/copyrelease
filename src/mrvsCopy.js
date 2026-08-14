@@ -20,7 +20,7 @@ export function remapQuestionAnswer(oldQaLink, qaSysIdMap, fallbackQaId) {
   return fallbackQaId || "";
 }
 
-export function shouldOmitVariable({
+export function shouldClearVariable({
   variableName,
   setInternalName,
   omitVariables = [],
@@ -43,18 +43,22 @@ export function shouldOmitVariable({
   return false;
 }
 
-export function rebuildMrvsJsonFromCells(cells, omitColumnNames = []) {
-  const skip = new Set(omitColumnNames);
+export function copiedValue(clearValue, originalValue) {
+  return clearValue ? "" : originalValue || "";
+}
+
+export function rebuildMrvsJsonFromCells(cells, clearColumnNames = []) {
+  const clear = new Set(clearColumnNames);
   const byRow = new Map();
 
   for (const cell of cells) {
-    if (!cell.name || skip.has(cell.name)) {
+    if (!cell.name) {
       continue;
     }
     if (!byRow.has(cell.row_index)) {
       byRow.set(cell.row_index, {});
     }
-    byRow.get(cell.row_index)[cell.name] = cell.value || "";
+    byRow.get(cell.row_index)[cell.name] = clear.has(cell.name) ? "" : cell.value || "";
   }
 
   return JSON.stringify([...byRow.values()]);

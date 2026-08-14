@@ -20,36 +20,36 @@ Single-row variables copied, but Multi-Row Variable Set (MRVS) grids on the copy
 4. `sc_item_produced_record.task` must be the new Release sys_id. Without it, the Variable Editor does not render MRVS as a table.
 5. After cell copy, rebuild `question_answer.value` JSON from the new rows so the formatter has data to display.
 
-## Omit variables on copy
+## Clear values on copy (variables stay on the form)
+
+Listed variables are still created on the copy. Only the **value** is left blank — they are not removed from the Variable Editor or MRVS grid.
 
 At the top of `copy_release_ui_action.js`, fill in internal names (not labels):
 
-| List | What it skips |
+| List | What it does |
 | --- | --- |
-| `OMIT_VARIABLES` | Individual variables (and MRVS columns with the same internal name) |
-| `OMIT_VARIABLE_SETS` | Every variable in that set, including a whole MRVS grid |
-| `OMIT_SET_COLUMNS` | Only the listed columns; the rest of the set still copies |
+| `CLEAR_VARIABLES` | Copy the variable, leave its value blank |
+| `CLEAR_VARIABLE_SETS` | Copy every variable in the set (including MRVS rows/columns), leave those values blank |
+| `CLEAR_SET_COLUMNS` | Copy those columns as blank; other columns still get source values |
 
 Find names in **Service Catalog → Variables** (`item_option_new.name`) and **Variable Sets** (`item_option_new_set.internal_name`).
 
-Example: copy Implementation Plan rows but not planned start/end, skip Contact entirely, and leave `release_manager` blank:
+Example: keep Implementation Plan rows, blank planned start/end, keep Contact rows/columns but blank them, and leave `release_manager` blank:
 
 ```javascript
-var OMIT_VARIABLES = [
+var CLEAR_VARIABLES = [
     "release_manager"
 ];
 
-var OMIT_VARIABLE_SETS = [
+var CLEAR_VARIABLE_SETS = [
     "agile_contact"
 ];
 
-var OMIT_SET_COLUMNS = {
+var CLEAR_SET_COLUMNS = {
     "agile_implementation_plan": ["planned_start_time", "planned_end_time"]
 };
 ```
 
-Omitted variables still appear on the copied form (the record producer is linked) but have no copied value. Everything else is copied.
-
 ## After deploy
 
-Open a Release that has populated MRVS grids (Agile Implementation Plan, Production Validation Plan, Backout Plan, Contact, and so on). Click **Copy Release**. The new record (`Copy of - …`) should show the same rows, not empty grids, minus anything listed in the omit arrays.
+Open a Release that has populated MRVS grids (Agile Implementation Plan, Production Validation Plan, Backout Plan, Contact, and so on). Click **Copy Release**. The new record (`Copy of - …`) should show the same variables and grid columns. Listed fields are empty; everything else is copied.

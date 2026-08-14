@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  copiedValue,
   rebuildMrvsJsonFromCells,
   remapMrvsParentId,
   remapQuestionAnswer,
-  shouldOmitVariable,
+  shouldClearVariable,
 } from '../src/mrvsCopy.js';
 
 test('parent_id pointing at the release is remapped to the copy', () => {
@@ -46,8 +47,8 @@ test('MRVS formatter JSON is rebuilt from cell rows in row_index order', () => {
   ]);
 });
 
-test('omits named standalone variables and whole variable sets', () => {
-  const omit = {
+test('clears named standalone variables and whole variable sets', () => {
+  const clear = {
     omitVariables: ['release_manager'],
     omitVariableSets: ['agile_contact'],
     omitSetColumns: {
@@ -56,25 +57,25 @@ test('omits named standalone variables and whole variable sets', () => {
   };
 
   assert.equal(
-    shouldOmitVariable({ variableName: 'release_manager', ...omit }),
+    shouldClearVariable({ variableName: 'release_manager', ...clear }),
     true,
   );
   assert.equal(
-    shouldOmitVariable({ variableName: 'short_notes', setInternalName: 'agile_contact', ...omit }),
+    shouldClearVariable({ variableName: 'short_notes', setInternalName: 'agile_contact', ...clear }),
     true,
   );
   assert.equal(
-    shouldOmitVariable({
+    shouldClearVariable({
       variableName: 'team_responsible',
       setInternalName: 'agile_implementation_plan',
-      ...omit,
+      ...clear,
     }),
     false,
   );
 });
 
-test('omits only listed columns inside a variable set', () => {
-  const omit = {
+test('clears only listed columns inside a variable set', () => {
+  const clear = {
     omitVariables: [],
     omitVariableSets: [],
     omitSetColumns: {
@@ -84,24 +85,27 @@ test('omits only listed columns inside a variable set', () => {
   };
 
   assert.equal(
-    shouldOmitVariable({
+    shouldClearVariable({
       variableName: 'planned_start_time',
       setInternalName: 'agile_implementation_plan',
-      ...omit,
+      ...clear,
     }),
     true,
   );
   assert.equal(
-    shouldOmitVariable({
+    shouldClearVariable({
       variableName: 'team_responsible',
       setInternalName: 'agile_implementation_plan',
-      ...omit,
+      ...clear,
     }),
     false,
   );
 });
 
-test('rebuilds MRVS JSON without omitted columns', () => {
+test('keeps cleared MRVS columns present with empty values', () => {
+  assert.equal(copiedValue(true, 'Dharani'), '');
+  assert.equal(copiedValue(false, 'Dharani'), 'Dharani');
+
   const json = rebuildMrvsJsonFromCells(
     [
       { row_index: '1', name: 'application', value: 'ServiceNow' },
@@ -113,7 +117,7 @@ test('rebuilds MRVS JSON without omitted columns', () => {
   );
 
   assert.deepEqual(JSON.parse(json), [
-    { application: 'ServiceNow' },
-    { application: 'ServiceNow' },
+    { application: 'ServiceNow', validator: '' },
+    { application: 'ServiceNow', validator: '' },
   ]);
 });

@@ -8,36 +8,37 @@
  *
  * Paste the IIFE below into the Script field (ServiceNow ES5).
  *
- * OMIT_* lists use catalog internal names:
+ * CLEAR_* lists use catalog internal names. Listed variables stay on the
+ * copied form; only their values are left blank.
  *   - item_option_new.name for variables / MRVS columns
  *   - item_option_new_set.internal_name for variable sets
  */
 (function() {
     var TABLE = "rm_release";
 
-    // Standalone (or any) variables to leave blank on the copy.
-    var OMIT_VARIABLES = [
+    // Individual variables to copy as blank (do not take the source value).
+    var CLEAR_VARIABLES = [
         // "release_manager",
         // "cab_approval"
     ];
 
-    // Skip every variable in these sets (single-row sets and whole MRVS grids).
-    var OMIT_VARIABLE_SETS = [
+    // Copy every variable in these sets, but leave all of their values blank.
+    var CLEAR_VARIABLE_SETS = [
         // "agile_contact"
     ];
 
-    // Skip only these columns; the rest of the set still copies.
+    // Copy these MRVS / variable-set columns as blank; other columns still copy values.
     // Key = variable set internal name, value = column internal names.
-    var OMIT_SET_COLUMNS = {
+    var CLEAR_SET_COLUMNS = {
         // "agile_implementation_plan": ["planned_start_time", "planned_end_time"],
         // "agile_production_validation_plan": ["validator"]
     };
 
-    var omitVarLookup = toLookup(OMIT_VARIABLES);
-    var omitSetLookup = toLookup(OMIT_VARIABLE_SETS);
-    var omitColLookup = {};
-    for (var setName in OMIT_SET_COLUMNS) {
-        omitColLookup[setName] = toLookup(OMIT_SET_COLUMNS[setName]);
+    var clearVarLookup = toLookup(CLEAR_VARIABLES);
+    var clearSetLookup = toLookup(CLEAR_VARIABLE_SETS);
+    var clearColLookup = {};
+    for (var setName in CLEAR_SET_COLUMNS) {
+        clearColLookup[setName] = toLookup(CLEAR_SET_COLUMNS[setName]);
     }
 
     var originalSysID = current.getUniqueValue();
@@ -55,11 +56,12 @@
 
     var qaSysIdMap = {};
     var questionToNewQa = {};
+    var blankQaIds = {};
     var varMetaCache = {};
     var setMetaCache = {};
 
     copyProducedRecord(originalSysID, newReleaseID);
-    copyQuestionAnswers(originalSysID, newReleaseID, qaSysIdMap, questionToNewQa);
+    copyQuestionAnswers(originalSysID, newReleaseID, qaSysIdMap, questionToNewQa, blankQaIds);
     copyMrvsCells(originalSysID, newReleaseID, qaSysIdMap, questionToNewQa);
     rebuildMrvsJson(newReleaseID);
 
@@ -106,23 +108,27 @@
         return name;
     }
 
-    function shouldOmitQuestion(questionId) {
+    function shouldClearQuestion(questionId) {
         var meta = getVarMeta(questionId);
-        if (meta.name && omitVarLookup[meta.name])
+        if (meta.name && clearVarLookup[meta.name])
             return true;
-        if (meta.setName && omitSetLookup[meta.setName])
+        if (meta.setName && clearSetLookup[meta.setName])
             return true;
         return false;
     }
 
-    function shouldOmitColumn(itemOptionNewId, variableSetId) {
+    function shouldClearColumn(itemOptionNewId, variableSetId, oldQaLink, oldParent) {
         var colMeta = getVarMeta(itemOptionNewId);
         var setName = colMeta.setName || getSetInternalName(variableSetId);
-        if (colMeta.name && omitVarLookup[colMeta.name])
+        if (colMeta.name && clearVarLookup[colMeta.name])
             return true;
-        if (setName && omitSetLookup[setName])
+        if (setName && clearSetLookup[setName])
             return true;
-        if (setName && omitColLookup[setName] && omitColLookup[setName][colMeta.name])
+        if (setName && clearColLookup[setName] && clearColLookup[setName][colMeta.name])
+            return true;
+        if (oldQaLink && blankQaIds[oldQaLink])
+            return true;
+        if (oldParent && blankQaIds[oldParent])
             return true;
         return false;
     }
@@ -142,26 +148,27 @@
         src.insert();
     }
 
-    function copyQuestionAnswers(fromId, toId, qaMap, questionMap) {
+    function copyQuestionAnswers(fromId, toId, qaMap, questionMap, blankMap) {
         var qaGR = new GlideRecord("question_answer");
         qaGR.addQuery("table_sys_id", fromId);
         qaGR.query();
 
         while (qaGR.next()) {
             var questionId = qaGR.getValue("question");
-            if (shouldOmitQuestion(questionId))
-                continue;
-
             var oldQaSysId = qaGR.getUniqueValue();
+            var clearValue = shouldClearQuestion(questionId);
+            if (clearValue)
+                blankMap[oldQaSysId] = true;
+
             var newQa = new GlideRecord("question_answer");
             newQa.initialize();
             newQa.setValue("table_name", TABLE);
             newQa.setValue("table_sys_id", toId);
             newQa.setValue("question", questionId);
             newQa.setValue("order", qaGR.getValue("order"));
-            newQa.setValue("value", qaGR.getValue("value"));
+            newQa.setValue("value", clearValue ? "" : qaGR.getValue("value"));
             if (qaGR.isValidField("question_choice"))
-                newQa.setValue("question_choice", qaGR.getValue("question_choice"));
+                newQa.setValue("question_choice", clearValue ? "" : qaGR.getValue("question_choice"));
 
             var newQaSysId = newQa.insert();
             qaMap[oldQaSysId] = newQaSysId;
@@ -187,8 +194,9 @@
         while (mrvsGR.next()) {
             var columnId = mrvsGR.getValue("item_option_new");
             var variableSetId = mrvsGR.getValue("variable_set");
-            if (shouldOmitColumn(columnId, variableSetId))
-                continue;
+            var oldParent = mrvsGR.getValue("parent_id");
+            var oldQaLink = mrvsGR.getValue("question_answer");
+            var clearValue = shouldClearColumn(columnId, variableSetId, oldQaLink, oldParent);
 
             var newMrvs = new GlideRecord("sc_multi_row_question_answer");
             newMrvs.initialize();
@@ -196,11 +204,10 @@
             newMrvs.setValue("variable_set", variableSetId);
             newMrvs.setValue("item_option_new", columnId);
             newMrvs.setValue("row_index", mrvsGR.getValue("row_index"));
-            newMrvs.setValue("value", mrvsGR.getValue("value"));
+            newMrvs.setValue("value", clearValue ? "" : mrvsGR.getValue("value"));
             if (mrvsGR.isValidField("display_value"))
-                newMrvs.setValue("display_value", mrvsGR.getValue("display_value"));
+                newMrvs.setValue("display_value", clearValue ? "" : mrvsGR.getValue("display_value"));
 
-            var oldParent = mrvsGR.getValue("parent_id");
             if (oldParent === fromId)
                 newMrvs.setValue("parent_id", toId);
             else if (qaMap[oldParent])
@@ -208,7 +215,6 @@
             else
                 newMrvs.setValue("parent_id", toId);
 
-            var oldQaLink = mrvsGR.getValue("question_answer");
             var newQaLink = "";
             if (oldQaLink && qaMap[oldQaLink])
                 newQaLink = qaMap[oldQaLink];
@@ -252,11 +258,6 @@
             var found = false;
 
             while (cells.next()) {
-                var columnId = cells.getValue("item_option_new");
-                var variableSetId = cells.getValue("variable_set");
-                if (shouldOmitColumn(columnId, variableSetId))
-                    continue;
-
                 found = true;
                 var idx = cells.getValue("row_index");
                 if (!byRow[idx]) {
