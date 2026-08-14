@@ -10,11 +10,8 @@ export function isMrvsVariable(variable) {
 }
 
 export function applyVariableClears(value, variable, variablesToClear, mrvsColumnsToClear) {
-  if (!isMrvsVariable(variable) && variablesToClear[variable.name]) {
+  if (variablesToClear[variable.name] && !isMrvsVariable(variable)) {
     return '';
-  }
-  if (!isMrvsVariable(variable)) {
-    return value;
   }
   return clearMrvsJsonValue(value, variable.variableSetName || variable.name, mrvsColumnsToClear);
 }

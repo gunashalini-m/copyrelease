@@ -9,10 +9,10 @@
  * Paste from copyReleaseRecord() downward into the Script field (ServiceNow ES5).
  * Use GlideRecord.setValue (not g_form.setValue) — this script runs on the server.
  *
- * item_option_new.type:
- *   21 = Multi-Row Variable Set (parent JSON + MRVS question_answer)
- *   Other types (6 text, 7 reference, 8 date, 9 date/time, …) are copied as-is
- *   unless listed in CLEAR_VARIABLES / CLEAR_SET_COLUMNS.
+ * Type 21 is only used to find the MRVS parent question_answer.
+ * Values are never cleared because a variable is type 21.
+ * MRVS cells are cleared by column name in CLEAR_SET_COLUMNS
+ * (variable name inside the variable set).
  *
  * CLEAR_* lists: listed questions stay on the copy; values are left blank.
  */
@@ -124,7 +124,7 @@ function isMrvsVariable(ctx, meta) {
 function shouldClearQuestion(ctx, questionId) {
     var meta = getVarMeta(ctx, questionId);
     if (isMrvsVariable(ctx, meta))
-        return !!(meta.setName && ctx.clearSetLookup[meta.setName]);
+        return false;
     if (meta.name && ctx.clearVarLookup[meta.name])
         return true;
     if (meta.setName && ctx.clearSetLookup[meta.setName])
@@ -134,12 +134,7 @@ function shouldClearQuestion(ctx, questionId) {
 
 function shouldClearColumn(ctx, itemOptionNewId, variableSetId) {
     var colMeta = getVarMeta(ctx, itemOptionNewId);
-    if (isMrvsVariable(ctx, colMeta))
-        return false;
-
     var setName = colMeta.setName || getSetInternalName(ctx, variableSetId);
-    if (colMeta.name && ctx.clearVarLookup[colMeta.name] && !setName)
-        return true;
     if (setName && ctx.clearSetLookup[setName])
         return true;
     return listedColumnForSet(ctx, setName, colMeta.name);
@@ -185,7 +180,7 @@ function copyQuestionAnswers(ctx) {
         var value = qaGR.getValue("value");
         if (clearValue)
             value = "";
-        else if (isMrvsVariable(ctx, meta))
+        else
             value = blankListedMrvsColumns(ctx, meta, value);
 
         var newQa = new GlideRecord("question_answer");
@@ -257,28 +252,47 @@ function copyMrvsCells(ctx) {
 }
 
 function blankListedMrvsColumns(ctx, meta, value) {
-    if (!isMrvsVariable(ctx, meta) || !value || value.indexOf("[") !== 0)
-        return value;
-
-    var colLookup = ctx.clearColLookup[meta.setName] || ctx.clearColLookup[meta.name];
-    if (!colLookup)
+    if (!value || value.indexOf("[") !== 0)
         return value;
 
     try {
         var rows = parseJson(value);
         if (!rows || typeof rows.length === "undefined")
             return value;
+
+        var colLookup = ctx.clearColLookup[meta.setName] || ctx.clearColLookup[meta.name];
+        if (!colLookup)
+            colLookup = columnsMatchingRow(ctx, rows[0]);
+        if (!colLookup)
+            return value;
+
         for (var i = 0; i < rows.length; i++) {
             var row = rows[i];
-            for (var key in row) {
-                if (colLookup[key])
-                    row[key] = "";
+            for (var columnName in colLookup) {
+                if (row && row.hasOwnProperty(columnName))
+                    row[columnName] = "";
             }
         }
         return stringifyJson(rows);
     } catch (e) {
         return value;
     }
+}
+
+function columnsMatchingRow(ctx, sampleRow) {
+    var lookup = {};
+    var found = false;
+    if (!sampleRow)
+        return null;
+    for (var setName in ctx.clearColLookup) {
+        for (var columnName in ctx.clearColLookup[setName]) {
+            if (sampleRow.hasOwnProperty(columnName)) {
+                lookup[columnName] = true;
+                found = true;
+            }
+        }
+    }
+    return found ? lookup : null;
 }
 
 function parseJson(str) {

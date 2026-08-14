@@ -29,11 +29,11 @@ test('clears configured scalar variables, not MRVS parents', () => {
   );
 });
 
-test('does not blank an entire type 21 MRVS value for CLEAR_VARIABLES', () => {
+test('clears MRVS JSON by column name, not by type 21', () => {
   const jsonValue = JSON.stringify([{ task: 'impl-1', planned_start_time: 'a' }]);
   const cleared = applyVariableClears(
     jsonValue,
-    { name: 'change_request', type: '21', variableSetName: 'u_agile_implementation_plan' },
+    { name: 'u_agile_implementation_plan', type: '21', variableSetName: 'u_agile_implementation_plan' },
     variablesToClear,
     mrvsColumnsToClear,
   );
