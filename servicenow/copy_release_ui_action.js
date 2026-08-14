@@ -9,6 +9,12 @@
  * Paste from copyReleaseRecord() downward into the Script field (ServiceNow ES5).
  * Use GlideRecord.setValue (not g_form.setValue) — this script runs on the server.
  *
+ * Catalog UI Policies on the copied form need:
+ *   - Applies on the Target Record = true
+ *   - sc_item_produced_record linking the copy to the Record Producer
+ *     (copied below; warn if the original has no producer link)
+ * Table UI Policies need On load = true and condition fields present on the copy.
+ *
  * Type 21 is only used to find the MRVS parent question_answer.
  * Values are never cleared because a variable is type 21.
  * MRVS cells are cleared by column name in CLEAR_SET_COLUMNS
@@ -42,8 +48,6 @@ function copyReleaseRecord() {
         return;
     }
 
-    action.setRedirectURL(newRelease);
-
     try {
         var ctx = {
             table: TABLE,
@@ -63,6 +67,7 @@ function copyReleaseRecord() {
             ctx.clearColLookup[setName] = toLookup(CLEAR_SET_COLUMNS[setName]);
 
         copyProducedRecord(ctx);
+        copyVariableEditorTask(ctx);
         copyQuestionAnswers(ctx);
         copyMrvsCells(ctx);
         gs.addInfoMessage("Release record successfully generated with fully populated variable grids.");
@@ -70,6 +75,8 @@ function copyReleaseRecord() {
         gs.addErrorMessage("Release was created, but variable copy failed: " + e);
         gs.error("Copy Release variable copy failed: " + e);
     }
+
+    action.setRedirectURL(newRelease);
 }
 
 function toLookup(arr) {
@@ -152,8 +159,10 @@ function copyProducedRecord(ctx) {
     qc.addOrCondition("record_key", ctx.fromId);
     src.setLimit(1);
     src.query();
-    if (!src.next())
+    if (!src.next()) {
+        gs.addErrorMessage("Catalog UI Policies will not load: no Record Producer link (sc_item_produced_record) on the original Release.");
         return;
+    }
 
     var dest = new GlideRecord("sc_item_produced_record");
     dest.initialize();
@@ -161,7 +170,22 @@ function copyProducedRecord(ctx) {
     dest.setValue("record_table", ctx.table);
     dest.setValue("task", ctx.toId);
     dest.setValue("record_key", ctx.toId);
-    dest.insert();
+    if (!dest.insert())
+        gs.addErrorMessage("Catalog UI Policies may not load: failed to copy the Record Producer link.");
+}
+
+function copyVariableEditorTask(ctx) {
+    var src = new GlideRecord("sc_item_variables_task");
+    if (!src.isValid())
+        return;
+    src.addQuery("task", ctx.fromId);
+    src.query();
+    while (src.next()) {
+        var dest = new GlideRecord("sc_item_variables_task");
+        dest.initialize();
+        dest.setValue("task", ctx.toId);
+        dest.insert();
+    }
 }
 
 function copyQuestionAnswers(ctx) {
