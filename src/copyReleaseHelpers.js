@@ -3,17 +3,20 @@
  * ServiceNow cannot import this module; keep both in sync.
  */
 
-export function applyVariableClears(
-  value,
-  variableName,
-  variableSetName,
-  variablesToClear,
-  mrvsColumnsToClear,
-) {
-  if (variablesToClear[variableName]) {
+export const TYPE_MRVS = '21';
+
+export function isMrvsVariable(variable) {
+  return String(variable && variable.type) === TYPE_MRVS;
+}
+
+export function applyVariableClears(value, variable, variablesToClear, mrvsColumnsToClear) {
+  if (!isMrvsVariable(variable) && variablesToClear[variable.name]) {
     return '';
   }
-  return clearMrvsJsonValue(value, variableSetName, mrvsColumnsToClear);
+  if (!isMrvsVariable(variable)) {
+    return value;
+  }
+  return clearMrvsJsonValue(value, variable.variableSetName || variable.name, mrvsColumnsToClear);
 }
 
 export function clearMrvsJsonValue(jsonValue, variableSetName, mrvsColumnsToClear) {
@@ -71,18 +74,23 @@ export function resolveCopiedParentId(originalParentId, originalSysId, newReleas
     : copiedAnswerByOriginalId[originalParentId] || newReleaseSysId;
 }
 
-export function resolveCopiedQuestionAnswerId(
-  originalAnswerId,
-  copiedAnswerByOriginalId,
-  mrvsParentAnswers,
-  variableSetId,
-) {
-  return (
-    copiedAnswerByOriginalId[originalAnswerId] ||
-    mrvsParentAnswers.byVariableSet[variableSetId] ||
-    mrvsParentAnswers.onlyMrvsParentId ||
-    ''
-  );
+export function resolveMrvsParentQa(questionMap, variablesByQuestionId, variableSetId) {
+  let fallback = '';
+  let type21Count = 0;
+
+  for (const questionId of Object.keys(questionMap)) {
+    const variable = variablesByQuestionId[questionId] || {};
+    if (!isMrvsVariable(variable)) {
+      continue;
+    }
+    if (variableSetId && variable.variableSetId === variableSetId) {
+      return questionMap[questionId];
+    }
+    fallback = questionMap[questionId];
+    type21Count += 1;
+  }
+
+  return type21Count === 1 ? fallback : '';
 }
 
 export function getMrvsParentAnswers(copiedAnswerByQuestionId, variablesByQuestionId) {
@@ -91,7 +99,7 @@ export function getMrvsParentAnswers(copiedAnswerByQuestionId, variablesByQuesti
 
   for (const questionId of Object.keys(copiedAnswerByQuestionId)) {
     const variable = variablesByQuestionId[questionId] || {};
-    if (String(variable.type) !== '21') {
+    if (!isMrvsVariable(variable)) {
       continue;
     }
 

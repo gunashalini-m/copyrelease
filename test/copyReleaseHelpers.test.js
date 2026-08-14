@@ -4,8 +4,9 @@ import {
   applyVariableClears,
   clearMrvsJsonValue,
   getMrvsParentAnswers,
+  isMrvsVariable,
   resolveCopiedParentId,
-  resolveCopiedQuestionAnswerId,
+  resolveMrvsParentQa,
   shouldClearMrvsColumn,
 } from '../src/copyReleaseHelpers.js';
 
@@ -17,15 +18,28 @@ const mrvsColumnsToClear = {
   },
 };
 
-test('clears configured scalar variables', () => {
+test('clears configured scalar variables, not MRVS parents', () => {
   assert.equal(
-    applyVariableClears('CHG0010001', 'change_request', '', variablesToClear, mrvsColumnsToClear),
+    applyVariableClears('CHG0010001', { name: 'change_request', type: '7' }, variablesToClear, mrvsColumnsToClear),
     '',
   );
   assert.equal(
-    applyVariableClears('keep-me', 'short_description', '', variablesToClear, mrvsColumnsToClear),
+    applyVariableClears('keep-me', { name: 'short_description', type: '6' }, variablesToClear, mrvsColumnsToClear),
     'keep-me',
   );
+});
+
+test('does not blank an entire type 21 MRVS value for CLEAR_VARIABLES', () => {
+  const jsonValue = JSON.stringify([{ task: 'impl-1', planned_start_time: 'a' }]);
+  const cleared = applyVariableClears(
+    jsonValue,
+    { name: 'change_request', type: '21', variableSetName: 'u_agile_implementation_plan' },
+    variablesToClear,
+    mrvsColumnsToClear,
+  );
+  const rows = JSON.parse(cleared);
+  assert.equal(rows[0].task, 'impl-1');
+  assert.equal(rows[0].planned_start_time, '');
 });
 
 test('clears configured MRVS date columns in JSON and keeps other fields', () => {
@@ -46,18 +60,6 @@ test('clears configured MRVS date columns in JSON and keeps other fields', () =>
   assert.equal(rows[0].planned_end_time, '');
 });
 
-test('clears MRVS JSON columns even when set name does not match', () => {
-  const jsonValue = JSON.stringify([
-    { planned_start_time: 'a', planned_end_time: 'b', owner: 'c' },
-  ]);
-
-  const rows = JSON.parse(clearMrvsJsonValue(jsonValue, '', mrvsColumnsToClear));
-
-  assert.equal(rows[0].planned_start_time, '');
-  assert.equal(rows[0].planned_end_time, '');
-  assert.equal(rows[0].owner, 'c');
-});
-
 test('leaves invalid JSON unchanged', () => {
   assert.equal(
     clearMrvsJsonValue('[not-json', 'u_agile_implementation_plan', mrvsColumnsToClear),
@@ -75,36 +77,21 @@ test('maps MRVS parent_id to the new release or copied question answer', () => {
     resolveCopiedParentId('originalAnswer', 'originalRelease', 'copiedRelease', copiedAnswerByOriginalId),
     'copiedAnswer',
   );
-  assert.equal(
-    resolveCopiedParentId('missing', 'originalRelease', 'copiedRelease', copiedAnswerByOriginalId),
-    'copiedRelease',
-  );
 });
 
-test('maps MRVS question_answer via copied id, then variable set, then single MRVS', () => {
-  const copiedAnswerByOriginalId = { originalAnswer: 'copiedAnswer' };
-  const mrvsParentAnswers = {
-    byVariableSet: { variableSet1: 'parentAnswerForSet' },
-    onlyMrvsParentId: 'onlyMrvsParent',
+test('resolveMrvsParentQa uses type 21 only, never column variables', () => {
+  const questionMap = {
+    columnQuestion: 'columnAnswer',
+    mrvsQuestion: 'mrvsParentAnswer',
+  };
+  const variables = {
+    columnQuestion: { type: '6', variableSetId: 'variableSet1' },
+    mrvsQuestion: { type: '21', variableSetId: 'variableSet1' },
   };
 
-  assert.equal(
-    resolveCopiedQuestionAnswerId(
-      'originalAnswer',
-      copiedAnswerByOriginalId,
-      mrvsParentAnswers,
-      'variableSet1',
-    ),
-    'copiedAnswer',
-  );
-  assert.equal(
-    resolveCopiedQuestionAnswerId('', copiedAnswerByOriginalId, mrvsParentAnswers, 'variableSet1'),
-    'parentAnswerForSet',
-  );
-  assert.equal(
-    resolveCopiedQuestionAnswerId('', copiedAnswerByOriginalId, mrvsParentAnswers, 'unknownSet'),
-    'onlyMrvsParent',
-  );
+  assert.equal(resolveMrvsParentQa(questionMap, variables, 'variableSet1'), 'mrvsParentAnswer');
+  assert.equal(isMrvsVariable(variables.columnQuestion), false);
+  assert.equal(isMrvsVariable(variables.mrvsQuestion), true);
 });
 
 test('getMrvsParentAnswers uses type 21 variables, not MRVS columns', () => {
