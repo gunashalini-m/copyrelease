@@ -51,6 +51,8 @@ var CLEAR_SET_COLUMNS = {
 };
 ```
 
+The Variable Editor reads MRVS data from `question_answer.value` JSON. A full rebuild of that JSON from cell rows was wiping **every** MRVS. The script now copies that JSON as-is, then blanks only listed keys (`planned_start_time`, `planned_end_time` on `u_agile_implementation_plan`). Other grids are unchanged.
+
 ## After deploy
 
 Confirm the UI Action has **Client** unchecked. Replace the Script field with `servicenow/copy_release_ui_action.js` (from `copyReleaseRecord();` down). Click **Copy Release** on a populated record. You should land on `Copy of - …`. If variable copy fails, the new Release still exists and a red error names the exception.

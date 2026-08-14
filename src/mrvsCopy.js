@@ -47,6 +47,39 @@ export function copiedValue(clearValue, originalValue) {
   return clearValue ? "" : originalValue || "";
 }
 
+export function blankListedMrvsColumns(value, setInternalName, questionName, clearSetColumns) {
+  const cols = [
+    ...((setInternalName && clearSetColumns[setInternalName]) || []),
+    ...((questionName && clearSetColumns[questionName]) || []),
+  ];
+  const clear = new Set(cols);
+  if (!clear.size || !value || value.charAt(0) !== '[') {
+    return value;
+  }
+
+  let rows;
+  try {
+    rows = JSON.parse(value);
+  } catch {
+    return value;
+  }
+  if (!Array.isArray(rows)) {
+    return value;
+  }
+
+  return JSON.stringify(
+    rows.map((row) => {
+      const next = { ...row };
+      for (const key of clear) {
+        if (Object.prototype.hasOwnProperty.call(next, key)) {
+          next[key] = '';
+        }
+      }
+      return next;
+    }),
+  );
+}
+
 export function rebuildMrvsJsonFromCells(cells, clearColumnNames = []) {
   const clear = new Set(clearColumnNames);
   const byRow = new Map();

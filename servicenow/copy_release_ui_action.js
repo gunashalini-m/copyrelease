@@ -59,7 +59,6 @@ function copyReleaseRecord() {
         copyProducedRecord(ctx);
         copyQuestionAnswers(ctx);
         copyMrvsCells(ctx);
-        rebuildMrvsJson(ctx);
         gs.addInfoMessage("Release record successfully generated with fully populated variable grids.");
     } catch (e) {
         gs.addErrorMessage("Release was created, but variable copy failed: " + e);
@@ -120,20 +119,20 @@ function shouldClearQuestion(ctx, questionId) {
     return false;
 }
 
-function shouldClearColumn(ctx, itemOptionNewId, variableSetId, oldQaLink, oldParent) {
+function shouldClearColumn(ctx, itemOptionNewId, variableSetId) {
     var colMeta = getVarMeta(ctx, itemOptionNewId);
     var setName = colMeta.setName || getSetInternalName(ctx, variableSetId);
-    if (colMeta.name && ctx.clearVarLookup[colMeta.name])
+    if (colMeta.name && ctx.clearVarLookup[colMeta.name] && !setName)
         return true;
     if (setName && ctx.clearSetLookup[setName])
         return true;
-    if (setName && ctx.clearColLookup[setName] && ctx.clearColLookup[setName][colMeta.name])
-        return true;
-    if (oldQaLink && ctx.blankQaIds[oldQaLink])
-        return true;
-    if (oldParent && ctx.blankQaIds[oldParent])
-        return true;
-    return false;
+    return listedColumnForSet(ctx, setName, colMeta.name);
+}
+
+function listedColumnForSet(ctx, setOrQuestionName, columnName) {
+    if (!setOrQuestionName || !columnName || !ctx.clearColLookup[setOrQuestionName])
+        return false;
+    return ctx.clearColLookup[setOrQuestionName][columnName] === true;
 }
 
 function copyProducedRecord(ctx) {
@@ -166,13 +165,19 @@ function copyQuestionAnswers(ctx) {
         if (clearValue)
             ctx.blankQaIds[oldQaSysId] = true;
 
+        var value = qaGR.getValue("value");
+        if (clearValue)
+            value = "";
+        else
+            value = blankListedMrvsColumns(ctx, questionId, value);
+
         var newQa = new GlideRecord("question_answer");
         newQa.initialize();
         newQa.setValue("table_name", ctx.table);
         newQa.setValue("table_sys_id", ctx.toId);
         newQa.setValue("question", questionId);
         newQa.setValue("order", qaGR.getValue("order"));
-        newQa.setValue("value", clearValue ? "" : qaGR.getValue("value"));
+        newQa.setValue("value", value);
         if (qaGR.isValidField("question_choice"))
             newQa.setValue("question_choice", clearValue ? "" : qaGR.getValue("question_choice"));
 
@@ -202,7 +207,7 @@ function copyMrvsCells(ctx) {
         var variableSetId = mrvsGR.getValue("variable_set");
         var oldParent = mrvsGR.getValue("parent_id");
         var oldQaLink = mrvsGR.getValue("question_answer");
-        var clearValue = shouldClearColumn(ctx, columnId, variableSetId, oldQaLink, oldParent);
+        var clearValue = shouldClearColumn(ctx, columnId, variableSetId);
 
         var newMrvs = new GlideRecord("sc_multi_row_question_answer");
         newMrvs.initialize();
@@ -234,6 +239,44 @@ function copyMrvsCells(ctx) {
     }
 }
 
+function blankListedMrvsColumns(ctx, questionId, value) {
+    if (!value || value.indexOf("[") !== 0)
+        return value;
+
+    var meta = getVarMeta(ctx, questionId);
+    var colLookup = ctx.clearColLookup[meta.setName] || ctx.clearColLookup[meta.name];
+    if (!colLookup)
+        return value;
+
+    try {
+        var rows = parseJson(value);
+        if (!rows || typeof rows.length === "undefined")
+            return value;
+        for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            for (var key in row) {
+                if (colLookup[key])
+                    row[key] = "";
+            }
+        }
+        return stringifyJson(rows);
+    } catch (e) {
+        return value;
+    }
+}
+
+function parseJson(str) {
+    if (typeof JSON !== "undefined" && JSON.parse)
+        return JSON.parse(str);
+    return new JSON().decode(str);
+}
+
+function stringifyJson(obj) {
+    if (typeof JSON !== "undefined" && JSON.stringify)
+        return JSON.stringify(obj);
+    return new JSON().encode(obj);
+}
+
 function resolveMrvsParentQa(ctx, variableSetId) {
     if (!variableSetId)
         return "";
@@ -244,51 +287,4 @@ function resolveMrvsParentQa(ctx, variableSetId) {
             return ctx.questionMap[questionId];
     }
     return "";
-}
-
-function rebuildMrvsJson(ctx) {
-    var qaGR = new GlideRecord("question_answer");
-    qaGR.addQuery("table_sys_id", ctx.toId);
-    qaGR.query();
-
-    while (qaGR.next()) {
-        var qaId = qaGR.getUniqueValue();
-        var cells = new GlideRecord("sc_multi_row_question_answer");
-        var cq = cells.addQuery("question_answer", qaId);
-        cq.addOrCondition("parent_id", qaId);
-        cells.orderBy("row_index");
-        cells.query();
-
-        var byRow = {};
-        var order = [];
-        var found = false;
-
-        while (cells.next()) {
-            found = true;
-            var idx = cells.getValue("row_index");
-            if (!byRow[idx]) {
-                byRow[idx] = {};
-                order.push(idx);
-            }
-            var colMeta = getVarMeta(ctx, cells.getValue("item_option_new"));
-            if (colMeta.name)
-                byRow[idx][colMeta.name] = cells.getValue("value") || "";
-        }
-
-        if (!found)
-            continue;
-
-        var rows = [];
-        for (var i = 0; i < order.length; i++)
-            rows.push(byRow[order[i]]);
-
-        qaGR.setValue("value", stringifyJson(rows));
-        qaGR.update();
-    }
-}
-
-function stringifyJson(obj) {
-    if (typeof JSON !== "undefined" && JSON.stringify)
-        return JSON.stringify(obj);
-    return new JSON().encode(obj);
 }

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  blankListedMrvsColumns,
   copiedValue,
   rebuildMrvsJsonFromCells,
   remapMrvsParentId,
@@ -139,6 +140,57 @@ test('clears change_request and agile implementation plan times but keeps the qu
       asSetColumn: true,
     }),
     false,
+  );
+});
+
+test('blanks only listed MRVS JSON keys and leaves other sets unchanged', () => {
+  const implementation = JSON.stringify([
+    {
+      sequence_number: '1',
+      team_responsible: 'ServiceNow',
+      planned_start_time: '2026-08-13 05:35:28',
+      planned_end_time: '2026-08-14 05:35:30',
+      steps_to_be_executed: 'Test Test Test',
+    },
+  ]);
+  const validation = JSON.stringify([
+    {
+      application: 'ServiceNow',
+      change_description: 'Test1',
+      validator: 'Dharani',
+    },
+  ]);
+  const clearSetColumns = {
+    u_agile_implementation_plan: ['planned_start_time', 'planned_end_time'],
+  };
+
+  assert.deepEqual(
+    JSON.parse(
+      blankListedMrvsColumns(
+        implementation,
+        'u_agile_implementation_plan',
+        'u_agile_implementation_plan',
+        clearSetColumns,
+      ),
+    ),
+    [
+      {
+        sequence_number: '1',
+        team_responsible: 'ServiceNow',
+        planned_start_time: '',
+        planned_end_time: '',
+        steps_to_be_executed: 'Test Test Test',
+      },
+    ],
+  );
+  assert.equal(
+    blankListedMrvsColumns(
+      validation,
+      'u_agile_production_validation_plan',
+      'u_agile_production_validation_plan',
+      clearSetColumns,
+    ),
+    validation,
   );
 });
 
