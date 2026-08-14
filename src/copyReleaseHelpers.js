@@ -1,41 +1,47 @@
 /**
- * Pure helpers shared with the Copy Release UI Action
- * (servicenow/copy_release_ui_action.js). ServiceNow cannot import this
- * module; keep both implementations in sync.
+ * Pure helpers matching servicenow/copy_release_ui_action.js.
+ * ServiceNow cannot import this module; keep both in sync.
  */
 
-export function clearAnswerValue(value, variableName, variableSetName, clearVars, clearMrvs) {
-  if (clearVars[variableName]) {
+export function applyVariableClears(
+  value,
+  variableName,
+  variableSetName,
+  variablesToClear,
+  mrvsColumnsToClear,
+) {
+  if (variablesToClear[variableName]) {
     return '';
   }
-  return clearMrvsJson(value, variableSetName, clearMrvs);
+  return clearMrvsJsonValue(value, variableSetName, mrvsColumnsToClear);
 }
 
-export function clearMrvsJson(value, setName, clearMrvs) {
-  if (!value || value.charAt(0) !== '[') {
-    return value;
+export function clearMrvsJsonValue(jsonValue, variableSetName, mrvsColumnsToClear) {
+  if (!jsonValue || jsonValue.charAt(0) !== '[') {
+    return jsonValue;
   }
 
   let rows;
   try {
-    rows = JSON.parse(value);
+    rows = JSON.parse(jsonValue);
   } catch {
-    return value;
+    return jsonValue;
   }
 
   if (!Array.isArray(rows) || rows.length === 0 || typeof rows[0] !== 'object' || rows[0] === null) {
-    return value;
+    return jsonValue;
   }
 
-  const cols = columnsToClear(setName, clearMrvs, rows[0]);
-  if (!cols) {
-    return value;
+  const columns =
+    mrvsColumnsToClear[variableSetName] || matchingClearColumns(rows[0], mrvsColumnsToClear);
+  if (!columns) {
+    return jsonValue;
   }
 
   for (const row of rows) {
-    for (const col of Object.keys(cols)) {
-      if (Object.prototype.hasOwnProperty.call(row, col)) {
-        row[col] = '';
+    for (const columnName of Object.keys(columns)) {
+      if (Object.prototype.hasOwnProperty.call(row, columnName)) {
+        row[columnName] = '';
       }
     }
   }
@@ -43,54 +49,65 @@ export function clearMrvsJson(value, setName, clearMrvs) {
   return JSON.stringify(rows);
 }
 
-export function columnsToClear(setName, clearMrvs, sampleRow) {
-  if (clearMrvs[setName]) {
-    return clearMrvs[setName];
-  }
-
-  const merged = {};
+export function matchingClearColumns(sampleRow, mrvsColumnsToClear) {
+  const columns = {};
   let found = false;
-  for (const set of Object.keys(clearMrvs)) {
-    for (const col of Object.keys(clearMrvs[set])) {
-      if (Object.prototype.hasOwnProperty.call(sampleRow, col)) {
-        merged[col] = true;
+
+  for (const variableSetName of Object.keys(mrvsColumnsToClear)) {
+    for (const columnName of Object.keys(mrvsColumnsToClear[variableSetName])) {
+      if (Object.prototype.hasOwnProperty.call(sampleRow, columnName)) {
+        columns[columnName] = true;
         found = true;
       }
     }
   }
-  return found ? merged : null;
+
+  return found ? columns : null;
 }
 
-export function resolveMrvsParent(oldParent, srcId, dstId, qaMap) {
-  return oldParent === srcId ? dstId : qaMap[oldParent] || dstId;
+export function resolveCopiedParentId(originalParentId, originalSysId, newReleaseSysId, copiedAnswerByOriginalId) {
+  return originalParentId === originalSysId
+    ? newReleaseSysId
+    : copiedAnswerByOriginalId[originalParentId] || newReleaseSysId;
 }
 
-export function resolveMrvsQuestionAnswer(oldQa, qaMap, setQaMap, variableSetId) {
-  return qaMap[oldQa] || setQaMap[variableSetId] || setQaMap._single || '';
+export function resolveCopiedQuestionAnswerId(
+  originalAnswerId,
+  copiedAnswerByOriginalId,
+  mrvsParentAnswers,
+  variableSetId,
+) {
+  return (
+    copiedAnswerByOriginalId[originalAnswerId] ||
+    mrvsParentAnswers.byVariableSet[variableSetId] ||
+    mrvsParentAnswers.onlyMrvsParentId ||
+    ''
+  );
 }
 
-export function buildSetQaMap(questionMap, variablesByQuestionId) {
-  const map = { _single: '' };
-  const type21 = [];
+export function getMrvsParentAnswers(copiedAnswerByQuestionId, variablesByQuestionId) {
+  const byVariableSet = {};
+  const mrvsParentIds = [];
 
-  for (const qid of Object.keys(questionMap)) {
-    const variable = variablesByQuestionId[qid] || {};
+  for (const questionId of Object.keys(copiedAnswerByQuestionId)) {
+    const variable = variablesByQuestionId[questionId] || {};
     if (String(variable.type) !== '21') {
       continue;
     }
+
+    const copiedAnswerSysId = copiedAnswerByQuestionId[questionId];
     if (variable.variableSetId) {
-      map[variable.variableSetId] = questionMap[qid];
+      byVariableSet[variable.variableSetId] = copiedAnswerSysId;
     }
-    type21.push(questionMap[qid]);
+    mrvsParentIds.push(copiedAnswerSysId);
   }
 
-  if (type21.length === 1) {
-    map._single = type21[0];
-  }
-
-  return map;
+  return {
+    byVariableSet,
+    onlyMrvsParentId: mrvsParentIds.length === 1 ? mrvsParentIds[0] : '',
+  };
 }
 
-export function shouldClearMrvsColumn(variableSetName, columnName, clearMrvs) {
-  return Boolean(clearMrvs[variableSetName] && clearMrvs[variableSetName][columnName]);
+export function shouldClearMrvsColumn(variableSetName, columnName, mrvsColumnsToClear) {
+  return Boolean(mrvsColumnsToClear[variableSetName] && mrvsColumnsToClear[variableSetName][columnName]);
 }

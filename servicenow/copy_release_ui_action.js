@@ -1,185 +1,271 @@
-// Copy Release — server UI Action on rm_release (form button)
 copyRelease();
 
 function copyRelease() {
-    var TABLE = 'rm_release';
-    var srcId = current.getUniqueValue();
-    var CLEAR_VARS = { change_request: true };
-    var CLEAR_MRVS = {
+    var releaseTable = 'rm_release';
+    var originalSysId = current.getUniqueValue();
+
+    var variablesToClear = {
+        change_request: true
+    };
+
+    var mrvsColumnsToClear = {
         u_agile_implementation_plan: {
             planned_start_time: true,
             planned_end_time: true
         }
     };
 
-    var rel = new GlideRecord(TABLE);
-    rel.initialize();
-    rel.short_description = 'Copy of - ' + current.short_description;
-    rel.description = current.description;
-    if (!rel.insert()) {
+    var release = new GlideRecord(releaseTable);
+    release.initialize();
+    release.short_description = 'Copy of - ' + current.short_description;
+    release.description = current.description;
+
+    if (!release.insert()) {
         gs.addErrorMessage('Failed to create copied Release.');
         return;
     }
 
-    var dstId = rel.getUniqueValue();
-    action.setRedirectURL(rel);
-    copyProducerLink(srcId, dstId, TABLE);
+    var newReleaseSysId = release.getUniqueValue();
+    action.setRedirectURL(release);
 
-    var varCache = {};
-    var qaMap = {};
-    var questionMap = {};
+    copyRecordProducerLink(originalSysId, newReleaseSysId, releaseTable);
 
-    var qa = new GlideRecord('question_answer');
-    qa.addQuery('table_sys_id', srcId);
-    qa.query();
+    var variableCache = {};
+    var copiedAnswers = copyQuestionAnswers(
+        originalSysId,
+        newReleaseSysId,
+        releaseTable,
+        variablesToClear,
+        mrvsColumnsToClear,
+        variableCache
+    );
 
-    while (qa.next()) {
-        var qid = qa.question.toString();
-        var v = getVariable(qid, varCache);
-        var val = CLEAR_VARS[v.name] ? '' : clearMrvsJson(qa.value.toString(), v.variableSetName, CLEAR_MRVS);
+    copyMultiRowAnswers(
+        originalSysId,
+        newReleaseSysId,
+        releaseTable,
+        copiedAnswers,
+        variableCache,
+        mrvsColumnsToClear
+    );
 
-        var nqa = new GlideRecord('question_answer');
-        nqa.initialize();
-        nqa.table_name = TABLE;
-        nqa.table_sys_id = dstId;
-        nqa.question = qid;
-        nqa.order = qa.order;
-        nqa.value = val;
-        if (nqa.isValidField('question_choice'))
-            nqa.question_choice = CLEAR_VARS[v.name] ? '' : qa.question_choice;
-
-        var nqaId = nqa.insert();
-        qaMap[qa.getUniqueValue()] = nqaId;
-        questionMap[qid] = nqaId;
-    }
-
-    copyMrvsRows(srcId, dstId, TABLE, qaMap, questionMap, varCache, CLEAR_MRVS);
     gs.addInfoMessage('Release copied successfully.');
 }
 
-function copyProducerLink(srcId, dstId, table) {
-    var pr = new GlideRecord('sc_item_produced_record');
-    pr.addQuery('task', srcId).addOrCondition('record_key', srcId);
-    pr.setLimit(1);
-    pr.query();
-    if (!pr.next())
+function copyRecordProducerLink(originalSysId, newReleaseSysId, releaseTable) {
+    var producedRecord = new GlideRecord('sc_item_produced_record');
+    producedRecord.addQuery('task', originalSysId)
+        .addOrCondition('record_key', originalSysId);
+    producedRecord.setLimit(1);
+    producedRecord.query();
+
+    if (!producedRecord.next())
         return;
 
-    var np = new GlideRecord('sc_item_produced_record');
-    np.initialize();
-    np.producer = pr.producer;
-    np.record_table = table;
-    np.task = dstId;
-    np.record_key = dstId;
-    np.insert();
+    var copiedProducedRecord = new GlideRecord('sc_item_produced_record');
+    copiedProducedRecord.initialize();
+    copiedProducedRecord.producer = producedRecord.producer;
+    copiedProducedRecord.record_table = releaseTable;
+    copiedProducedRecord.task = newReleaseSysId;
+    copiedProducedRecord.record_key = newReleaseSysId;
+    copiedProducedRecord.insert();
 }
 
-function copyMrvsRows(srcId, dstId, table, qaMap, questionMap, varCache, clearMrvs) {
-    var ids = [];
-    for (var id in qaMap)
-        ids.push(id);
+function copyQuestionAnswers(
+    originalSysId,
+    newReleaseSysId,
+    releaseTable,
+    variablesToClear,
+    mrvsColumnsToClear,
+    variableCache
+) {
+    var copiedAnswerByOriginalId = {};
+    var copiedAnswerByQuestionId = {};
 
-    var mrvs = new GlideRecord('sc_multi_row_question_answer');
-    var q = mrvs.addQuery('parent_id', srcId);
-    if (ids.length) {
-        q.addOrCondition('parent_id', 'IN', ids.join(','));
-        q.addOrCondition('question_answer', 'IN', ids.join(','));
+    var questionAnswer = new GlideRecord('question_answer');
+    questionAnswer.addQuery('table_sys_id', originalSysId);
+    questionAnswer.query();
+
+    while (questionAnswer.next()) {
+        var questionId = questionAnswer.question.toString();
+        var variable = getVariable(questionId, variableCache);
+        var value = questionAnswer.value.toString();
+
+        if (variablesToClear[variable.name])
+            value = '';
+        else
+            value = clearMrvsJsonValue(value, variable.variableSetName, mrvsColumnsToClear);
+
+        var copiedAnswer = new GlideRecord('question_answer');
+        copiedAnswer.initialize();
+        copiedAnswer.table_name = releaseTable;
+        copiedAnswer.table_sys_id = newReleaseSysId;
+        copiedAnswer.question = questionId;
+        copiedAnswer.order = questionAnswer.order;
+        copiedAnswer.value = value;
+
+        if (copiedAnswer.isValidField('question_choice'))
+            copiedAnswer.question_choice = variablesToClear[variable.name]
+                ? ''
+                : questionAnswer.question_choice;
+
+        var copiedAnswerSysId = copiedAnswer.insert();
+        copiedAnswerByOriginalId[questionAnswer.getUniqueValue()] = copiedAnswerSysId;
+        copiedAnswerByQuestionId[questionId] = copiedAnswerSysId;
     }
-    mrvs.query();
 
-    var setQaMap = buildSetQaMap(questionMap, varCache);
+    return {
+        byOriginalId: copiedAnswerByOriginalId,
+        byQuestionId: copiedAnswerByQuestionId
+    };
+}
 
-    while (mrvs.next()) {
-        var v = getVariable(mrvs.item_option_new.toString(), varCache);
-        var clear = !!(clearMrvs[v.variableSetName] && clearMrvs[v.variableSetName][v.name]);
+function copyMultiRowAnswers(
+    originalSysId,
+    newReleaseSysId,
+    releaseTable,
+    copiedAnswers,
+    variableCache,
+    mrvsColumnsToClear
+) {
+    var originalAnswerIds = [];
+    for (var copiedOriginalId in copiedAnswers.byOriginalId)
+        originalAnswerIds.push(copiedOriginalId);
 
-        var row = new GlideRecord('sc_multi_row_question_answer');
-        row.initialize();
-        row.parent_table_name = table;
-        row.variable_set = mrvs.variable_set;
-        row.item_option_new = mrvs.item_option_new;
-        row.row_index = mrvs.row_index;
-        row.value = clear ? '' : mrvs.value;
-        if (row.isValidField('display_value'))
-            row.display_value = clear ? '' : mrvs.display_value;
+    var multiRowAnswer = new GlideRecord('sc_multi_row_question_answer');
+    var query = multiRowAnswer.addQuery('parent_id', originalSysId);
 
-        var oldParent = mrvs.parent_id.toString();
-        row.parent_id = oldParent == srcId ? dstId : (qaMap[oldParent] || dstId);
+    if (originalAnswerIds.length) {
+        query.addOrCondition('parent_id', 'IN', originalAnswerIds.join(','));
+        query.addOrCondition('question_answer', 'IN', originalAnswerIds.join(','));
+    }
 
-        var oldQa = mrvs.question_answer.toString();
-        row.question_answer = qaMap[oldQa] || setQaMap[mrvs.variable_set.toString()] || setQaMap._single || '';
-        row.insert();
+    multiRowAnswer.query();
+
+    var mrvsParentAnswers = getMrvsParentAnswers(copiedAnswers.byQuestionId, variableCache);
+
+    while (multiRowAnswer.next()) {
+        var columnVariable = getVariable(
+            multiRowAnswer.item_option_new.toString(),
+            variableCache
+        );
+        var columnsToClear = mrvsColumnsToClear[columnVariable.variableSetName];
+        var clearThisColumn = columnsToClear && columnsToClear[columnVariable.name];
+
+        var copiedRow = new GlideRecord('sc_multi_row_question_answer');
+        copiedRow.initialize();
+        copiedRow.parent_table_name = releaseTable;
+        copiedRow.variable_set = multiRowAnswer.variable_set;
+        copiedRow.item_option_new = multiRowAnswer.item_option_new;
+        copiedRow.row_index = multiRowAnswer.row_index;
+        copiedRow.value = clearThisColumn ? '' : multiRowAnswer.value;
+
+        if (copiedRow.isValidField('display_value'))
+            copiedRow.display_value = clearThisColumn ? '' : multiRowAnswer.display_value;
+
+        var originalParentId = multiRowAnswer.parent_id.toString();
+        copiedRow.parent_id = originalParentId == originalSysId
+            ? newReleaseSysId
+            : (copiedAnswers.byOriginalId[originalParentId] || newReleaseSysId);
+
+        var originalAnswerId = multiRowAnswer.question_answer.toString();
+        var variableSetId = multiRowAnswer.variable_set.toString();
+        copiedRow.question_answer =
+            copiedAnswers.byOriginalId[originalAnswerId] ||
+            mrvsParentAnswers.byVariableSet[variableSetId] ||
+            mrvsParentAnswers.onlyMrvsParentId ||
+            '';
+
+        copiedRow.insert();
     }
 }
 
-function clearMrvsJson(value, setName, clearMrvs) {
-    if (!value || value.charAt(0) != '[')
-        return value;
+function clearMrvsJsonValue(jsonValue, variableSetName, mrvsColumnsToClear) {
+    if (!jsonValue || jsonValue.charAt(0) != '[')
+        return jsonValue;
 
     try {
-        var rows = JSON.parse(value);
-        if (!rows || !rows.length || typeof rows[0] != 'object')
-            return value;
+        var rows = JSON.parse(jsonValue);
+        if (!rows || !rows.length)
+            return jsonValue;
 
-        var cols = clearMrvs[setName];
-        if (!cols) {
-            cols = {};
-            var found = false;
-            for (var s in clearMrvs) {
-                for (var c in clearMrvs[s]) {
-                    if (rows[0].hasOwnProperty(c)) {
-                        cols[c] = true;
-                        found = true;
-                    }
-                }
-            }
-            if (!found)
-                return value;
-        }
+        var columns = mrvsColumnsToClear[variableSetName]
+            || matchingClearColumns(rows[0], mrvsColumnsToClear);
+
+        if (!columns)
+            return jsonValue;
 
         for (var i = 0; i < rows.length; i++) {
-            for (var col in cols) {
-                if (rows[i].hasOwnProperty(col))
-                    rows[i][col] = '';
+            for (var columnName in columns) {
+                if (rows[i].hasOwnProperty(columnName))
+                    rows[i][columnName] = '';
             }
         }
+
         return JSON.stringify(rows);
     } catch (e) {
-        return value;
+        return jsonValue;
     }
 }
 
-function buildSetQaMap(questionMap, varCache) {
-    var map = { _single: '' };
-    var type21 = [];
+function matchingClearColumns(sampleRow, mrvsColumnsToClear) {
+    var columns = {};
+    var found = false;
 
-    for (var qid in questionMap) {
-        var v = getVariable(qid, varCache);
-        if (v.type != '21')
+    for (var variableSetName in mrvsColumnsToClear) {
+        for (var columnName in mrvsColumnsToClear[variableSetName]) {
+            if (sampleRow && sampleRow.hasOwnProperty(columnName)) {
+                columns[columnName] = true;
+                found = true;
+            }
+        }
+    }
+
+    return found ? columns : null;
+}
+
+function getMrvsParentAnswers(copiedAnswerByQuestionId, variableCache) {
+    var byVariableSet = {};
+    var mrvsParentIds = [];
+
+    for (var questionId in copiedAnswerByQuestionId) {
+        var variable = getVariable(questionId, variableCache);
+        if (variable.type != '21')
             continue;
-        if (v.variableSetId)
-            map[v.variableSetId] = questionMap[qid];
-        type21.push(questionMap[qid]);
+
+        var copiedAnswerSysId = copiedAnswerByQuestionId[questionId];
+        if (variable.variableSetId)
+            byVariableSet[variable.variableSetId] = copiedAnswerSysId;
+        mrvsParentIds.push(copiedAnswerSysId);
     }
 
-    if (type21.length == 1)
-        map._single = type21[0];
-
-    return map;
+    return {
+        byVariableSet: byVariableSet,
+        onlyMrvsParentId: mrvsParentIds.length == 1 ? mrvsParentIds[0] : ''
+    };
 }
 
-function getVariable(questionId, cache) {
-    if (cache[questionId])
-        return cache[questionId];
+function getVariable(questionId, variableCache) {
+    if (variableCache[questionId])
+        return variableCache[questionId];
 
-    var r = { name: '', type: '', variableSetId: '', variableSetName: '' };
-    var gr = new GlideRecord('item_option_new');
-    if (gr.get(questionId)) {
-        r.name = gr.name.toString();
-        r.type = gr.type.toString();
-        r.variableSetId = gr.variable_set.toString();
-        r.variableSetName = gr.variable_set.internal_name.toString() || gr.variable_set.name.toString();
+    var variable = {
+        name: '',
+        type: '',
+        variableSetId: '',
+        variableSetName: ''
+    };
+
+    var catalogVariable = new GlideRecord('item_option_new');
+    if (catalogVariable.get(questionId)) {
+        variable.name = catalogVariable.name.toString();
+        variable.type = catalogVariable.type.toString();
+        variable.variableSetId = catalogVariable.variable_set.toString();
+        variable.variableSetName =
+            catalogVariable.variable_set.internal_name.toString() ||
+            catalogVariable.variable_set.name.toString();
     }
-    cache[questionId] = r;
-    return r;
+
+    variableCache[questionId] = variable;
+    return variable;
 }
