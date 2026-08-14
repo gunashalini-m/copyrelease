@@ -1,6 +1,8 @@
 # Copy Release (ServiceNow UI Action)
 
-Server-side UI Action for `rm_release`. Paste `copy_release_ui_action.js` into the Script field.
+Server-side UI Action for `rm_release`. Paste from `copyReleaseRecord();` downward into the Script field. Do **not** wrap it in an extra `(function() { ... })();` — that pattern can fail in ServiceNow's Rhino engine before `insert()` runs, so no record is created.
+
+If variable copy hits an error, the new Release is still kept and an error message is shown.
 
 ## UI Action
 
@@ -50,5 +52,7 @@ var CLEAR_SET_COLUMNS = {
 ```
 
 ## After deploy
+
+Confirm the UI Action has **Client** unchecked. Replace the Script field with `servicenow/copy_release_ui_action.js` (from `copyReleaseRecord();` down). Click **Copy Release** on a populated record. You should land on `Copy of - …`. If variable copy fails, the new Release still exists and a red error names the exception.
 
 Open a Release that has populated MRVS grids (Agile Implementation Plan, Production Validation Plan, Backout Plan, Contact, and so on). Click **Copy Release**. The new record (`Copy of - …`) should show the same variables and grid columns. Listed fields are empty; everything else is copied.
