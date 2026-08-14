@@ -102,6 +102,46 @@ test('clears only listed columns inside a variable set', () => {
   );
 });
 
+test('clears change_request and agile implementation plan times but keeps the questions', () => {
+  assert.equal(
+    shouldClearVariable({ variableName: 'change_request', omitVariables: ['change_request'] }),
+    true,
+  );
+  assert.equal(
+    shouldClearVariable({
+      variableName: 'planned_start_time',
+      setInternalName: 'u_agile_implementation_plan',
+      omitSetColumns: {
+        u_agile_implementation_plan: ['planned_start_time', 'planned_end_time'],
+      },
+      asSetColumn: true,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldClearVariable({
+      variableName: 'planned_end_time',
+      setInternalName: 'u_agile_implementation_plan',
+      omitSetColumns: {
+        u_agile_implementation_plan: ['planned_start_time', 'planned_end_time'],
+      },
+      asSetColumn: true,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldClearVariable({
+      variableName: 'team_responsible',
+      setInternalName: 'u_agile_implementation_plan',
+      omitSetColumns: {
+        u_agile_implementation_plan: ['planned_start_time', 'planned_end_time'],
+      },
+      asSetColumn: true,
+    }),
+    false,
+  );
+});
+
 test('keeps cleared MRVS columns present with empty values', () => {
   assert.equal(copiedValue(true, 'Dharani'), '');
   assert.equal(copiedValue(false, 'Dharani'), 'Dharani');

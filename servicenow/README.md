@@ -34,19 +34,18 @@ At the top of `copy_release_ui_action.js`, fill in internal names (not labels):
 
 Find names in **Service Catalog → Variables** (`item_option_new.name`) and **Variable Sets** (`item_option_new_set.internal_name`).
 
-Example: keep Implementation Plan rows, blank planned start/end, keep Contact rows/columns but blank them, and leave `release_manager` blank:
+Example: `change_request` stays on the form with no value; Implementation Plan rows copy except `planned_start_time` and `planned_end_time`, which stay blank:
 
 ```javascript
 var CLEAR_VARIABLES = [
-    "release_manager"
+    "change_request"
 ];
 
 var CLEAR_VARIABLE_SETS = [
-    "agile_contact"
 ];
 
 var CLEAR_SET_COLUMNS = {
-    "agile_implementation_plan": ["planned_start_time", "planned_end_time"]
+    "u_agile_implementation_plan": ["planned_start_time", "planned_end_time"]
 };
 ```
 

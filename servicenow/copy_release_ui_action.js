@@ -18,20 +18,17 @@
 
     // Individual variables to copy as blank (do not take the source value).
     var CLEAR_VARIABLES = [
-        // "release_manager",
-        // "cab_approval"
+        "change_request"
     ];
 
     // Copy every variable in these sets, but leave all of their values blank.
     var CLEAR_VARIABLE_SETS = [
-        // "agile_contact"
     ];
 
     // Copy these MRVS / variable-set columns as blank; other columns still copy values.
     // Key = variable set internal name, value = column internal names.
     var CLEAR_SET_COLUMNS = {
-        // "agile_implementation_plan": ["planned_start_time", "planned_end_time"],
-        // "agile_production_validation_plan": ["validator"]
+        "u_agile_implementation_plan": ["planned_start_time", "planned_end_time"]
     };
 
     var clearVarLookup = toLookup(CLEAR_VARIABLES);
