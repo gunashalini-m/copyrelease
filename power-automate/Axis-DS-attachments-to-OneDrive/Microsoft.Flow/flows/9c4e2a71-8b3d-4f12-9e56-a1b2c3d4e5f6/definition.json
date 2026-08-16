@@ -7,7 +7,7 @@
     "displayName": "Axis DS attachments to OneDrive",
     "definition": {
       "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-      "contentVersion": "10.0.0.4",
+      "contentVersion": "10.0.0.5",
       "parameters": {
         "$connections": {
           "defaultValue": {},
@@ -43,7 +43,7 @@
                   "x-ms-content-hint": "DATE"
                 },
                 "number": {
-                  "description": "Use 1 or 2 while testing",
+                  "description": "Use 1 while testing",
                   "title": "Max emails",
                   "type": "number",
                   "x-ms-dynamically-added": true,
@@ -90,7 +90,7 @@
             "parameters": {
               "folderPath": "Inbox/Axis",
               "fetchOnlyUnread": false,
-              "includeAttachments": true,
+              "includeAttachments": false,
               "fetchOnlyWithAttachment": true,
               "importance": "Any",
               "top": "@int(triggerBody()?['number'])",
@@ -133,36 +133,50 @@
                 }
               },
               "actions": {
+                "Attachment_name": {
+                  "type": "Compose",
+                  "inputs": "@string(coalesce(items('For_each_attachment')?['name'], items('For_each_attachment')?['Name'], ''))"
+                },
                 "Condition_DS_attachment": {
+                  "runAfter": {
+                    "Attachment_name": [
+                      "Succeeded"
+                    ]
+                  },
                   "type": "If",
                   "expression": {
-                    "and": [
-                      {
-                        "contains": [
-                          "@coalesce(items('For_each_attachment')?['name'], items('For_each_attachment')?['Name'], '')",
-                          "_DS_"
-                        ]
-                      },
-                      {
-                        "not": {
-                          "equals": [
-                            "@coalesce(items('For_each_attachment')?['isInline'], items('For_each_attachment')?['IsInline'], False)",
-                            true
-                          ]
-                        }
-                      }
+                    "contains": [
+                      "@outputs('Attachment_name')",
+                      "_DS_"
                     ]
                   },
                   "actions": {
-                    "Create_file": {
+                    "Get_Attachment_V2": {
                       "type": "OpenApiConnection",
                       "retryPolicy": {
                         "type": "None"
                       },
-                      "runtimeConfiguration": {
-                        "contentTransfer": {
-                          "transferMode": "Chunked"
+                      "inputs": {
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                          "connectionName": "shared_office365",
+                          "operationId": "GetAttachment_V2"
+                        },
+                        "parameters": {
+                          "messageId": "@items('For_each_email')?['id']",
+                          "attachmentId": "@coalesce(items('For_each_attachment')?['id'], items('For_each_attachment')?['Id'])"
                         }
+                      }
+                    },
+                    "Create_file": {
+                      "runAfter": {
+                        "Get_Attachment_V2": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "OpenApiConnection",
+                      "retryPolicy": {
+                        "type": "None"
                       },
                       "inputs": {
                         "host": {
@@ -171,9 +185,9 @@
                           "operationId": "CreateFile"
                         },
                         "parameters": {
-                          "folderPath": "/Documents/Axis-DS-Attachments",
-                          "name": "@coalesce(items('For_each_attachment')?['name'], items('For_each_attachment')?['Name'])",
-                          "body": "@coalesce(items('For_each_attachment')?['contentBytes'], items('For_each_attachment')?['ContentBytes'])"
+                          "folderPath": "/",
+                          "name": "@outputs('Attachment_name')",
+                          "body": "@body('Get_Attachment_V2')?['contentBytes']"
                         }
                       }
                     }
