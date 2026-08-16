@@ -50,3 +50,11 @@ After import
 5. Save. Test with Max emails = 1.
 
 Do not click Resubmit on the old hour-long run. Start a new Test.
+
+
+If a run succeeds but no file appears
+-------------------------------------
+Condition DS attachment True means the name matched _DS_.
+Create file must sit directly under that True branch.
+Do not keep Condition has content / Get Attachment for the test path.
+Pick the OneDrive folder with the folder picker.
