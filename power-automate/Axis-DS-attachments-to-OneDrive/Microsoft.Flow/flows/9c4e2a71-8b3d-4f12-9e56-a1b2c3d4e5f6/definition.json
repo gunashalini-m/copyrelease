@@ -7,7 +7,7 @@
     "displayName": "Axis DS attachments to OneDrive",
     "definition": {
       "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-      "contentVersion": "10.0.0.2",
+      "contentVersion": "10.0.0.3",
       "parameters": {
         "$connections": {
           "defaultValue": {},
@@ -178,8 +178,7 @@
                             },
                             "parameters": {
                               "messageId": "@items('For_each_email')?['id']",
-                              "attachmentId": "@coalesce(items('For_each_attachment')?['id'], items('For_each_attachment')?['Id'])",
-                              "bodyOnly": false
+                              "attachmentId": "@coalesce(items('For_each_attachment')?['id'], items('For_each_attachment')?['Id'])"
                             }
                           }
                         },
