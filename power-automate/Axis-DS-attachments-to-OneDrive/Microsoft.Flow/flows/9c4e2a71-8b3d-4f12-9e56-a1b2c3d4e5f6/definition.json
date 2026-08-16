@@ -7,7 +7,7 @@
     "displayName": "Axis DS attachments to OneDrive",
     "definition": {
       "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-      "contentVersion": "10.0.0.5",
+      "contentVersion": "10.0.0.6",
       "parameters": {
         "$connections": {
           "defaultValue": {},
@@ -90,7 +90,7 @@
             "parameters": {
               "folderPath": "Inbox/Axis",
               "fetchOnlyUnread": false,
-              "includeAttachments": false,
+              "includeAttachments": true,
               "fetchOnlyWithAttachment": true,
               "importance": "Any",
               "top": "@int(triggerBody()?['number'])",
@@ -124,9 +124,32 @@
             }
           },
           "actions": {
-            "For_each_attachment": {
+            "Attachment_names_on_email": {
+              "type": "Compose",
+              "inputs": "@join(select(coalesce(items('For_each_email')?['attachments'], items('For_each_email')?['Attachments'], json('[]')), string(coalesce(item()?['name'], item()?['Name'], '(no name)'))), ', ')"
+            },
+            "Filter_DS_attachments": {
+              "runAfter": {
+                "Attachment_names_on_email": [
+                  "Succeeded",
+                  "Failed",
+                  "Skipped"
+                ]
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@coalesce(items('For_each_email')?['attachments'], items('For_each_email')?['Attachments'], json('[]'))",
+                "where": "@or(contains(toLower(string(coalesce(item()?['name'], item()?['Name'], ''))), '_ds_'), contains(string(coalesce(item()?['name'], item()?['Name'], '')), 'DS'))"
+              }
+            },
+            "For_each_DS_attachment": {
+              "runAfter": {
+                "Filter_DS_attachments": [
+                  "Succeeded"
+                ]
+              },
               "type": "Foreach",
-              "foreach": "@coalesce(items('For_each_email')?['attachments'], items('For_each_email')?['Attachments'], json('[]'))",
+              "foreach": "@body('Filter_DS_attachments')",
               "runtimeConfiguration": {
                 "concurrency": {
                   "repetitions": 1
@@ -135,65 +158,51 @@
               "actions": {
                 "Attachment_name": {
                   "type": "Compose",
-                  "inputs": "@string(coalesce(items('For_each_attachment')?['name'], items('For_each_attachment')?['Name'], ''))"
+                  "inputs": "@trim(string(coalesce(items('For_each_DS_attachment')?['name'], items('For_each_DS_attachment')?['Name'], '')))"
                 },
-                "Condition_DS_attachment": {
+                "Get_Attachment_V2": {
                   "runAfter": {
                     "Attachment_name": [
                       "Succeeded"
                     ]
                   },
-                  "type": "If",
-                  "expression": {
-                    "contains": [
-                      "@outputs('Attachment_name')",
-                      "_DS_"
+                  "type": "OpenApiConnection",
+                  "retryPolicy": {
+                    "type": "None"
+                  },
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                      "connectionName": "shared_office365",
+                      "operationId": "GetAttachment_V2"
+                    },
+                    "parameters": {
+                      "messageId": "@items('For_each_email')?['id']",
+                      "attachmentId": "@coalesce(items('For_each_DS_attachment')?['id'], items('For_each_DS_attachment')?['Id'])"
+                    }
+                  }
+                },
+                "Create_file": {
+                  "runAfter": {
+                    "Get_Attachment_V2": [
+                      "Succeeded"
                     ]
                   },
-                  "actions": {
-                    "Get_Attachment_V2": {
-                      "type": "OpenApiConnection",
-                      "retryPolicy": {
-                        "type": "None"
-                      },
-                      "inputs": {
-                        "host": {
-                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
-                          "connectionName": "shared_office365",
-                          "operationId": "GetAttachment_V2"
-                        },
-                        "parameters": {
-                          "messageId": "@items('For_each_email')?['id']",
-                          "attachmentId": "@coalesce(items('For_each_attachment')?['id'], items('For_each_attachment')?['Id'])"
-                        }
-                      }
-                    },
-                    "Create_file": {
-                      "runAfter": {
-                        "Get_Attachment_V2": [
-                          "Succeeded"
-                        ]
-                      },
-                      "type": "OpenApiConnection",
-                      "retryPolicy": {
-                        "type": "None"
-                      },
-                      "inputs": {
-                        "host": {
-                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness",
-                          "connectionName": "shared_onedriveforbusiness",
-                          "operationId": "CreateFile"
-                        },
-                        "parameters": {
-                          "folderPath": "/",
-                          "name": "@outputs('Attachment_name')",
-                          "body": "@body('Get_Attachment_V2')?['contentBytes']"
-                        }
-                      }
-                    }
+                  "type": "OpenApiConnection",
+                  "retryPolicy": {
+                    "type": "None"
                   },
-                  "else": {
-                    "actions": {}
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness",
+                      "connectionName": "shared_onedriveforbusiness",
+                      "operationId": "CreateFile"
+                    },
+                    "parameters": {
+                      "folderPath": "/",
+                      "name": "@outputs('Attachment_name')",
+                      "body": "@coalesce(body('Get_Attachment_V2')?['contentBytes'], items('For_each_DS_attachment')?['contentBytes'])"
+                    }
                   }
                 }
               }
