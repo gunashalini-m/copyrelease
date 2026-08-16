@@ -7,7 +7,7 @@
     "displayName": "Axis DS attachments to OneDrive",
     "definition": {
       "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-      "contentVersion": "10.0.0.1",
+      "contentVersion": "10.0.0.2",
       "parameters": {
         "$connections": {
           "defaultValue": {},
@@ -41,11 +41,19 @@
                   "format": "date",
                   "x-ms-dynamically-added": true,
                   "x-ms-content-hint": "DATE"
+                },
+                "number": {
+                  "description": "Use 1 or 2 while testing",
+                  "title": "Max emails",
+                  "type": "number",
+                  "x-ms-dynamically-added": true,
+                  "x-ms-content-hint": "NUMBER"
                 }
               },
               "required": [
                 "date",
-                "date_1"
+                "date_1",
+                "number"
               ]
             }
           }
@@ -73,11 +81,6 @@
             ]
           },
           "type": "OpenApiConnection",
-          "runtimeConfiguration": {
-            "paginationPolicy": {
-              "minimumItemCount": 5000
-            }
-          },
           "inputs": {
             "host": {
               "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
@@ -90,7 +93,7 @@
               "includeAttachments": true,
               "fetchOnlyWithAttachment": true,
               "importance": "Any",
-              "top": 250,
+              "top": "@int(triggerBody()?['number'])",
               "searchQuery": "@{concat('received:', formatDateTime(outputs('UTC_start'),'yyyy-MM-dd'), '..', formatDateTime(outputs('UTC_end'),'yyyy-MM-dd'))}"
             }
           }
@@ -115,10 +118,20 @@
           },
           "type": "Foreach",
           "foreach": "@body('Filter_by_received_IST_range')",
+          "runtimeConfiguration": {
+            "concurrency": {
+              "repetitions": 1
+            }
+          },
           "actions": {
             "For_each_attachment": {
               "type": "Foreach",
-              "foreach": "@coalesce(items('For_each_email')?['attachments'], items('For_each_email')?['Attachments'])",
+              "foreach": "@coalesce(items('For_each_email')?['attachments'], items('For_each_email')?['Attachments'], json('[]'))",
+              "runtimeConfiguration": {
+                "concurrency": {
+                  "repetitions": 1
+                }
+              },
               "actions": {
                 "Condition_DS_attachment": {
                   "type": "If",
@@ -126,14 +139,14 @@
                     "and": [
                       {
                         "contains": [
-                          "@coalesce(items('For_each_attachment')?['name'], items('For_each_attachment')?['Name'])",
+                          "@coalesce(items('For_each_attachment')?['name'], items('For_each_attachment')?['Name'], '')",
                           "_DS_"
                         ]
                       },
                       {
                         "not": {
                           "equals": [
-                            "@coalesce(items('For_each_attachment')?['isInline'], items('For_each_attachment')?['IsInline'])",
+                            "@coalesce(items('For_each_attachment')?['isInline'], items('For_each_attachment')?['IsInline'], False)",
                             true
                           ]
                         }
@@ -141,37 +154,95 @@
                     ]
                   },
                   "actions": {
-                    "Get_Attachment_V2": {
-                      "type": "OpenApiConnection",
-                      "inputs": {
-                        "host": {
-                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
-                          "connectionName": "shared_office365",
-                          "operationId": "GetAttachment_V2"
-                        },
-                        "parameters": {
-                          "messageId": "@items('For_each_email')?['id']",
-                          "attachmentId": "@coalesce(items('For_each_attachment')?['id'], items('For_each_attachment')?['Id'])"
-                        }
-                      }
-                    },
-                    "Create_file": {
-                      "runAfter": {
-                        "Get_Attachment_V2": [
-                          "Succeeded"
+                    "Condition_has_content": {
+                      "type": "If",
+                      "expression": {
+                        "empty": [
+                          "@coalesce(items('For_each_attachment')?['contentBytes'], items('For_each_attachment')?['ContentBytes'])"
                         ]
                       },
-                      "type": "OpenApiConnection",
-                      "inputs": {
-                        "host": {
-                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness",
-                          "connectionName": "shared_onedriveforbusiness",
-                          "operationId": "CreateFile"
+                      "actions": {
+                        "Get_Attachment_V2": {
+                          "type": "OpenApiConnection",
+                          "retryPolicy": {
+                            "type": "None"
+                          },
+                          "limit": {
+                            "timeout": "PT1M"
+                          },
+                          "inputs": {
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                              "connectionName": "shared_office365",
+                              "operationId": "GetAttachment_V2"
+                            },
+                            "parameters": {
+                              "messageId": "@items('For_each_email')?['id']",
+                              "attachmentId": "@coalesce(items('For_each_attachment')?['id'], items('For_each_attachment')?['Id'])",
+                              "bodyOnly": false
+                            }
+                          }
                         },
-                        "parameters": {
-                          "folderPath": "/Documents/Axis-DS-Attachments",
-                          "name": "@coalesce(items('For_each_attachment')?['name'], items('For_each_attachment')?['Name'])",
-                          "body": "@base64ToBinary(body('Get_Attachment_V2')?['contentBytes'])"
+                        "Create_file_after_download": {
+                          "runAfter": {
+                            "Get_Attachment_V2": [
+                              "Succeeded"
+                            ]
+                          },
+                          "type": "OpenApiConnection",
+                          "retryPolicy": {
+                            "type": "None"
+                          },
+                          "limit": {
+                            "timeout": "PT1M"
+                          },
+                          "runtimeConfiguration": {
+                            "contentTransfer": {
+                              "transferMode": "Chunked"
+                            }
+                          },
+                          "inputs": {
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness",
+                              "connectionName": "shared_onedriveforbusiness",
+                              "operationId": "CreateFile"
+                            },
+                            "parameters": {
+                              "folderPath": "/Documents/Axis-DS-Attachments",
+                              "name": "@coalesce(body('Get_Attachment_V2')?['name'], items('For_each_attachment')?['name'])",
+                              "body": "@coalesce(body('Get_Attachment_V2')?['contentBytes'], body('Get_Attachment_V2'))"
+                            }
+                          }
+                        }
+                      },
+                      "else": {
+                        "actions": {
+                          "Create_file": {
+                            "type": "OpenApiConnection",
+                            "retryPolicy": {
+                              "type": "None"
+                            },
+                            "limit": {
+                              "timeout": "PT1M"
+                            },
+                            "runtimeConfiguration": {
+                              "contentTransfer": {
+                                "transferMode": "Chunked"
+                              }
+                            },
+                            "inputs": {
+                              "host": {
+                                "apiId": "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness",
+                                "connectionName": "shared_onedriveforbusiness",
+                                "operationId": "CreateFile"
+                              },
+                              "parameters": {
+                                "folderPath": "/Documents/Axis-DS-Attachments",
+                                "name": "@coalesce(items('For_each_attachment')?['name'], items('For_each_attachment')?['Name'])",
+                                "body": "@coalesce(items('For_each_attachment')?['contentBytes'], items('For_each_attachment')?['ContentBytes'])"
+                              }
+                            }
+                          }
                         }
                       }
                     }
