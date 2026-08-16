@@ -27,7 +27,9 @@ param(
 
     [string] $NameMatch = '_DS_',
 
-    [int] $MaxEmails = 0
+    [int] $MaxEmails = 0,
+
+    [string] $AccountId = 'MDR_Cni@apollohospitals.com'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -181,10 +183,29 @@ function Save-ToOneDrive {
     }
 }
 
-Write-Host 'Signing in to Microsoft Graph (browser window)...'
-Connect-MgGraph -Scopes 'Mail.Read','Files.ReadWrite','User.Read' -NoWelcome | Out-Null
+Write-Host "Signing in as $AccountId ..."
+Write-Host 'If a browser opens, pick this account. If you get a code, open https://microsoft.com/devicelogin and enter it.'
+Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
+try {
+    Connect-MgGraph -Scopes 'Mail.Read','Files.ReadWrite','User.Read' -AccountId $AccountId | Out-Null
+}
+catch {
+    Write-Host 'Browser sign-in failed. Switching to device code...'
+    Connect-MgGraph -Scopes 'Mail.Read','Files.ReadWrite','User.Read' -UseDeviceCode -AccountId $AccountId | Out-Null
+}
 $ctx = Get-MgContext
+if (-not $ctx -or -not $ctx.Account) {
+    Write-Host 'No Graph session yet. Using device code sign-in...'
+    Connect-MgGraph -Scopes 'Mail.Read','Files.ReadWrite','User.Read' -UseDeviceCode -AccountId $AccountId | Out-Null
+    $ctx = Get-MgContext
+}
+if (-not $ctx -or -not $ctx.Account) {
+    throw "Not signed in. Sign in as $AccountId (not a personal Microsoft account) and accept Mail.Read and Files.ReadWrite."
+}
 Write-Host "Signed in as $($ctx.Account)"
+if ($ctx.Account -notlike '*apollohospitals.com') {
+    Write-Warning "You signed in as $($ctx.Account). This mailbox is not MDR_Cni@apollohospitals.com. Disconnect and sign in with the Apollo account."
+}
 
 $startUtc = Get-IstToUtc -Date $StartDate -Hour 0 -Minute 0
 $endUtc = Get-IstToUtc -Date $EndDate -Hour 23 -Minute 50
