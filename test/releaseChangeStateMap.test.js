@@ -3,22 +3,63 @@ import { test } from 'node:test';
 import { createMapper, loadStateMap } from '../src/releaseChangeStateMap.js';
 
 const mapper = createMapper();
+const PARENT = 'CHG0001234';
+
+function map(row) {
+  return mapper.mapChangeToRelease({ parentChangeNumber: PARENT, ...row });
+}
+
+function next(row, current) {
+  return mapper.nextReleaseState({ parentChangeNumber: PARENT, ...row }, current);
+}
 
 test('format lists the mapping and the cases it covers', () => {
-  const map = loadStateMap();
-  assert.equal(map.map.new, 'draft');
-  assert.equal(map.authorizeAndApproval.releaseWhenPending, 'awaiting_approval');
-  assert.ok(map.testCases.length >= 10);
+  const mapFile = loadStateMap();
+  assert.equal(mapFile.map.new, 'draft');
+  assert.equal(mapFile.noParentReleaseState, 'draft');
+  assert.equal(mapFile.link.releaseParentField, 'parent');
+  assert.equal(mapFile.authorizeAndApproval.releaseWhenPending, 'awaiting_approval');
+  assert.ok(mapFile.testCases.length >= 10);
+});
+
+test('no parent number keeps the Release in Draft', () => {
+  const result = mapper.mapChangeToRelease({
+    changeState: 'Authorize',
+    changeApproval: 'requested',
+  });
+  assert.equal(result.releaseState, 'draft');
+  assert.equal(result.reason, 'no_parent');
+  assert.equal(result.parentChangeNumber, null);
+});
+
+test('empty parent string keeps the Release in Draft', () => {
+  const result = mapper.mapChangeToRelease({
+    parentChangeNumber: '  ',
+    changeState: 'Scheduled',
+    changeApproval: 'approved',
+  });
+  assert.equal(result.releaseState, 'draft');
+  assert.equal(result.reason, 'no_parent');
+});
+
+test('clearing parent after the Release had moved on goes back to Draft', () => {
+  const result = mapper.nextReleaseState(
+    { parentChangeNumber: '', changeState: 'Implement' },
+    'implementation',
+  );
+  assert.equal(result.releaseState, 'draft');
+  assert.equal(result.changed, true);
+  assert.equal(result.reason, 'no_parent');
 });
 
 test('New → Draft', () => {
-  assert.equal(mapper.mapChangeToRelease({ changeState: 'New' }).releaseState, 'draft');
-  assert.equal(mapper.mapChangeToRelease({ changeState: '-5' }).releaseState, 'draft');
+  assert.equal(map({ changeState: 'New' }).releaseState, 'draft');
+  assert.equal(map({ changeState: '-5' }).releaseState, 'draft');
 });
 
 test('Assess → Draft', () => {
-  assert.equal(mapper.mapChangeToRelease({ changeState: 'Assess' }).releaseState, 'draft');
-  assert.equal(mapper.mapChangeToRelease({ changeState: '-4' }).releaseState, 'draft');
+  assert.equal(map({ changeState: 'Assess' }).releaseState, 'draft');
+  assert.equal(map({ changeState: '-4' }).releaseState, 'draft');
 });
 
 test('Authorize with pending approval → Awaiting Approval', () => {
@@ -30,14 +71,15 @@ test('Authorize with pending approval → Awaiting Approval', () => {
   ];
 
   for (const row of pending) {
-    const result = mapper.mapChangeToRelease(row);
+    const result = map(row);
     assert.equal(result.releaseState, 'awaiting_approval', JSON.stringify(row));
     assert.equal(result.releaseStateLabel, 'Awaiting Approval');
+    assert.equal(result.parentChangeNumber, PARENT);
   }
 });
 
 test('Approval state while still waiting → Awaiting Approval', () => {
-  const result = mapper.mapChangeToRelease({
+  const result = map({
     changeState: 'Approval',
     changeApproval: 'requested',
   });
@@ -45,7 +87,7 @@ test('Approval state while still waiting → Awaiting Approval', () => {
 });
 
 test('Authorize after the Change is approved → Approved', () => {
-  const result = mapper.mapChangeToRelease({
+  const result = map({
     changeState: 'Authorize',
     changeApproval: 'approved',
   });
@@ -53,7 +95,7 @@ test('Authorize after the Change is approved → Approved', () => {
 });
 
 test('Approval state after the Change is approved → Approved', () => {
-  const result = mapper.mapChangeToRelease({
+  const result = map({
     changeState: 'Approval',
     changeApproval: 'approved',
   });
@@ -72,7 +114,7 @@ test('Scheduled / Implement / Review / Closed / Canceled', () => {
   ];
 
   for (const [changeState, releaseState] of rows) {
-    const result = mapper.mapChangeToRelease({ changeState, changeApproval: 'approved' });
+    const result = map({ changeState, changeApproval: 'approved' });
     assert.equal(result.releaseState, releaseState, changeState);
   }
 });
@@ -91,7 +133,7 @@ test('forward path through Change states moves the Release with it', () => {
 
   let release = null;
   for (const step of steps) {
-    const result = mapper.nextReleaseState(step, release);
+    const result = next(step, release);
     assert.equal(result.releaseState, step.expect, JSON.stringify(step));
     release = result.releaseStateValue;
   }
@@ -100,7 +142,7 @@ test('forward path through Change states moves the Release with it', () => {
 test('Change moving backwards moves the Release backwards', () => {
   let release = 'scheduled';
 
-  let result = mapper.nextReleaseState(
+  let result = next(
     { changeState: 'Authorize', changeApproval: 'requested' },
     release,
   );
@@ -108,7 +150,7 @@ test('Change moving backwards moves the Release backwards', () => {
   assert.equal(result.changed, true);
   release = result.releaseStateValue;
 
-  result = mapper.nextReleaseState(
+  result = next(
     { changeState: 'Assess', changeApproval: 'not requested' },
     release,
   );
@@ -117,7 +159,7 @@ test('Change moving backwards moves the Release backwards', () => {
 });
 
 test('Canceled from mid-flow sets Release to Cancelled', () => {
-  const result = mapper.nextReleaseState(
+  const result = next(
     { changeState: 'Canceled', changeApproval: 'cancelled' },
     'implementation',
   );
@@ -125,8 +167,8 @@ test('Canceled from mid-flow sets Release to Cancelled', () => {
   assert.equal(result.changed, true);
 });
 
-test('unknown Change state leaves the Release alone', () => {
-  const result = mapper.nextReleaseState(
+test('unknown Change state leaves the Release alone when parent is set', () => {
+  const result = next(
     { changeState: 'On Hold', changeApproval: 'requested' },
     'scheduled',
   );
@@ -136,7 +178,7 @@ test('unknown Change state leaves the Release alone', () => {
 });
 
 test('no write when the Release is already on the mapped state', () => {
-  const result = mapper.nextReleaseState(
+  const result = next(
     { changeState: 'Authorize', changeApproval: 'requested' },
     'awaiting_approval',
   );

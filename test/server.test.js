@@ -59,6 +59,7 @@ test('release create and copy flow', async () => {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        parentChangeNumber: 'CHG0001234',
         changeState: 'Authorize',
         changeApproval: 'requested',
         currentReleaseState: 'draft',
@@ -73,6 +74,7 @@ test('release create and copy flow', async () => {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        parentChangeNumber: 'CHG0001234',
         changeState: 'Assess',
         changeApproval: 'not requested',
         currentReleaseState: 'awaiting_approval',
@@ -81,6 +83,20 @@ test('release create and copy flow', async () => {
     const movedBack = await backResponse.json();
     assert.equal(movedBack.releaseState, 'draft');
     assert.equal(movedBack.changed, true);
+
+    const noParentResponse = await fetch(`http://127.0.0.1:${PORT}/release-change-state-map/resolve`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        changeState: 'Authorize',
+        changeApproval: 'requested',
+        currentReleaseState: 'scheduled',
+      }),
+    });
+    const noParent = await noParentResponse.json();
+    assert.equal(noParent.releaseState, 'draft');
+    assert.equal(noParent.reason, 'no_parent');
+    assert.equal(noParent.changed, true);
   } finally {
     server.kill();
     await once(server, 'exit');

@@ -1,10 +1,12 @@
 /**
- * Business Rule: Sync Release state from Change
+ * Business Rule 1 — Change Request
  * Table: Change Request [change_request]
  * When: after insert / after update
  * Condition: State changes OR Approval changes
  *
- * Paste from syncLinkedReleases() down into the Script field.
+ * Only Releases whose parent is this Change (number or sys_id) are updated.
+ *
+ * Paste from syncReleasesForThisChange() down into the Script field.
  *
  * Mapping:
  *   New / Assess                              → Draft
@@ -16,25 +18,44 @@
  *   Closed                                    → Closed Complete
  *   Canceled                                  → Cancelled
  *
- * Always map from the current Change. If it goes back a step, the Release
- * goes back too.
+ * Always map from this Change as it is now. If it goes back a step, the
+ * Release goes back too.
  */
-syncLinkedReleases();
+syncReleasesForThisChange();
 
-function syncLinkedReleases() {
-    var CHANGE = {
-        "new": "-5",
-        "assess": "-4",
-        "authorize": "-3",
-        "scheduled": "-2",
-        "implement": "-1",
-        "review": "0",
-        "closed": "3",
-        "canceled": "4"
-    };
+function syncReleasesForThisChange() {
+    var RELEASE = releaseChoices();
+    var target = releaseStateForChange(
+        String(current.getValue("state") || ""),
+        String(current.getValue("approval") || "").toLowerCase(),
+        String(current.getDisplayValue("state") || "").toLowerCase(),
+        RELEASE
+    );
+    if (!target)
+        return;
 
+    var rel = new GlideRecord("rm_release");
+    var q = rel.addQuery("parent", current.getUniqueValue());
+    q.addOrCondition("parent", current.getValue("number"));
+    rel.query();
+
+    var n = 0;
+    while (rel.next()) {
+        if (String(rel.getValue("parent") || "") === "")
+            continue;
+        if (setReleaseState(rel, target))
+            n++;
+    }
+
+    if (n > 0)
+        gs.info("Set " + n + " Release(s) to " + target + " from parent Change " +
+            current.getDisplayValue() + " (state=" + current.getValue("state") +
+            ", approval=" + current.getValue("approval") + ")");
+}
+
+function releaseChoices() {
     // Match these to rm_release.state on your instance.
-    var RELEASE = {
+    return {
         "draft": "draft",
         "awaiting_approval": "awaiting_approval",
         "approved": "approved",
@@ -44,31 +65,23 @@ function syncLinkedReleases() {
         "closed": "closed",
         "cancelled": "cancelled"
     };
-
-    var state = String(current.getValue("state") || "");
-    var approval = String(current.getValue("approval") || "").toLowerCase();
-    var stateName = String(current.getDisplayValue("state") || "").toLowerCase();
-    var target = releaseStateForChange(state, approval, stateName, CHANGE, RELEASE);
-    if (!target)
-        return;
-
-    var ids = {};
-    findReleasesByChangeField(current, ids);
-    findReleaseParent(current, ids);
-    findReleasesByVariable(current, ids);
-
-    var n = 0;
-    for (var id in ids) {
-        if (setReleaseState(id, target))
-            n++;
-    }
-
-    if (n > 0)
-        gs.info("Release state set to " + target + " from Change " + current.getDisplayValue() +
-            " (state=" + state + ", approval=" + approval + ")");
 }
 
-function releaseStateForChange(state, approval, stateName, CHANGE, RELEASE) {
+function changeChoices() {
+    return {
+        "new": "-5",
+        "assess": "-4",
+        "authorize": "-3",
+        "scheduled": "-2",
+        "implement": "-1",
+        "review": "0",
+        "closed": "3",
+        "canceled": "4"
+    };
+}
+
+function releaseStateForChange(state, approval, stateName, RELEASE) {
+    var CHANGE = changeChoices();
     var name = String(stateName || "");
 
     if (state === CHANGE.canceled || name === "canceled" || name === "cancelled")
@@ -99,40 +112,7 @@ function releaseStateForChange(state, approval, stateName, CHANGE, RELEASE) {
     return null;
 }
 
-function findReleasesByChangeField(changeGr, ids) {
-    var rel = new GlideRecord("rm_release");
-    rel.addQuery("change_request", changeGr.getUniqueValue());
-    rel.query();
-    while (rel.next())
-        ids[String(rel.getUniqueValue())] = true;
-}
-
-function findReleaseParent(changeGr, ids) {
-    var parentId = String(changeGr.getValue("parent") || "");
-    if (!parentId)
-        return;
-    var rel = new GlideRecord("rm_release");
-    if (rel.get(parentId))
-        ids[parentId] = true;
-}
-
-function findReleasesByVariable(changeGr, ids) {
-    var qa = new GlideRecord("question_answer");
-    qa.addQuery("table_name", "rm_release");
-    qa.addQuery("value", changeGr.getUniqueValue());
-    qa.addQuery("item.name", "change_request");
-    qa.query();
-    while (qa.next()) {
-        var releaseId = String(qa.getValue("table_sys_id") || "");
-        if (releaseId)
-            ids[releaseId] = true;
-    }
-}
-
-function setReleaseState(releaseId, target) {
-    var rel = new GlideRecord("rm_release");
-    if (!rel.get(releaseId))
-        return false;
+function setReleaseState(rel, target) {
     if (String(rel.getValue("state") || "") === String(target))
         return false;
     rel.setValue("state", target);

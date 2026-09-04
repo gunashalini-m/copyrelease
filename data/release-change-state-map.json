@@ -1,9 +1,14 @@
 {
-  "description": "Release state follows the linked Change. Re-read this table on every Change state or approval update, including when the Change moves backwards.",
+  "description": "Release state follows the Change in the Release parent field only. Re-read this table when that Change's state or approval changes, including when it moves backwards. No parent → Draft and stay there.",
   "tables": {
     "change": "change_request",
     "release": "rm_release"
   },
+  "link": {
+    "releaseParentField": "parent",
+    "note": "Only the Change number (or sys_id) on rm_release.parent is used. Other links are ignored. Empty parent keeps the Release in Draft."
+  },
+  "noParentReleaseState": "draft",
   "changeStateValues": {
     "new": "-5",
     "assess": "-4",
@@ -58,6 +63,9 @@
     "pendingApprovals": ["requested", "not requested", "rejected", "cancelled", "canceled", ""]
   },
   "testCases": [
+    "Release with no parent number → Draft (and only Draft)",
+    "Parent cleared after the Release had moved on → Draft",
+    "Only the Change in Release.parent is used; other Change links are ignored",
     "New → Draft",
     "Assess → Draft",
     "Authorize with approval requested / not requested / rejected / blank → Awaiting Approval",

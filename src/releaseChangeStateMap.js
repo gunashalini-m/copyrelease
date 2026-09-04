@@ -47,10 +47,16 @@ function isPendingApproval(map, approval) {
   return pending.includes(approval);
 }
 
-function pack(map, changeState, changeApproval, releaseKey) {
+function parentNumber(input) {
+  const raw = input.parentChangeNumber ?? input.parent ?? '';
+  return String(raw).trim();
+}
+
+function pack(map, changeState, changeApproval, releaseKey, extra = {}) {
   return {
     matched: true,
-    reason: 'mapped',
+    reason: extra.reason || 'mapped',
+    parentChangeNumber: extra.parentChangeNumber ?? null,
     changeState,
     changeApproval: changeApproval || 'not_requested',
     releaseState: releaseKey,
@@ -59,10 +65,11 @@ function pack(map, changeState, changeApproval, releaseKey) {
   };
 }
 
-function miss(reason, changeState, changeApproval) {
+function miss(reason, changeState, changeApproval, parentChangeNumber = null) {
   return {
     matched: false,
     reason,
+    parentChangeNumber,
     changeState: changeState ?? null,
     changeApproval: changeApproval ?? null,
     releaseState: null,
@@ -72,13 +79,22 @@ function miss(reason, changeState, changeApproval) {
 }
 
 /**
- * Pick the Release state from the Change as it stands now.
- * Call this again whenever state or approval changes; going backwards is fine.
+ * Pick the Release state from the Change on Release.parent.
+ * No parent number means Draft only. Call again when parent, state, or
+ * approval changes; going backwards is fine.
  */
 export function mapChangeToRelease(input = {}, map = loadStateMap()) {
+  const parent = parentNumber(input);
+  if (!parent) {
+    return pack(map, null, null, map.noParentReleaseState || 'draft', {
+      reason: 'no_parent',
+      parentChangeNumber: null,
+    });
+  }
+
   const changeState = lookupChangeState(map, input.changeState);
   if (!changeState) {
-    return miss('unknown_change_state', input.changeState, input.changeApproval);
+    return miss('unknown_change_state', input.changeState, input.changeApproval, parent);
   }
 
   const changeApproval = lookupApproval(input.changeApproval);
@@ -86,16 +102,22 @@ export function mapChangeToRelease(input = {}, map = loadStateMap()) {
 
   if (auth.changeStates.includes(changeState)) {
     if (!isPendingApproval(map, changeApproval) && changeApproval === 'approved') {
-      return pack(map, changeState, changeApproval, auth.releaseWhenApproved);
+      return pack(map, changeState, changeApproval, auth.releaseWhenApproved, {
+        parentChangeNumber: parent,
+      });
     }
-    return pack(map, changeState, changeApproval, auth.releaseWhenPending);
+    return pack(map, changeState, changeApproval, auth.releaseWhenPending, {
+      parentChangeNumber: parent,
+    });
   }
 
   const releaseKey = map.map[changeState];
   if (!releaseKey) {
-    return miss('no_matching_rule', changeState, changeApproval);
+    return miss('no_matching_rule', changeState, changeApproval, parent);
   }
-  return pack(map, changeState, changeApproval, releaseKey);
+  return pack(map, changeState, changeApproval, releaseKey, {
+    parentChangeNumber: parent,
+  });
 }
 
 export function nextReleaseState(changeSnapshot, currentReleaseState, map = loadStateMap()) {

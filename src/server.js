@@ -22,10 +22,11 @@ app.get('/release-change-state-map', (_req, res) => {
 });
 
 app.post('/release-change-state-map/resolve', (req, res) => {
-  const { changeState, changeApproval, currentReleaseState } = req.body ?? {};
+  const { parentChangeNumber, parent, changeState, changeApproval, currentReleaseState } =
+    req.body ?? {};
   res.json(
     defaultMapper.nextReleaseState(
-      { changeState, changeApproval },
+      { parentChangeNumber: parentChangeNumber ?? parent, changeState, changeApproval },
       currentReleaseState,
     ),
   );
