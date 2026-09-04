@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "description": "Projects a linked Release state from the current Change state and approval. Re-evaluate on every Change update so the Release moves forward and backward with the Change.",
+  "change": {
+    "table": "change_request",
+    "stateField": "state",
+    "approvalField": "approval",
+    "states": {
+      "new": { "value": "-5", "aliases": ["new", "pending"] },
+      "assess": { "value": "-4", "aliases": ["assess"] },
+      "authorize": { "value": "-3", "aliases": ["authorize", "authorization"] },
+      "approval": { "value": "approval", "aliases": ["approval"] },
+      "scheduled": { "value": "-2", "aliases": ["scheduled"] },
+      "implement": { "value": "-1", "aliases": ["implement", "implementation"] },
+      "review": { "value": "0", "aliases": ["review"] },
+      "closed": { "value": "3", "aliases": ["closed", "closed complete"] },
+      "canceled": { "value": "4", "aliases": ["canceled", "cancelled"] }
+    },
+    "approvals": {
+      "not_requested": { "value": "not requested", "aliases": ["not requested"] },
+      "requested": { "value": "requested", "aliases": ["requested"] },
+      "approved": { "value": "approved", "aliases": ["approved"] },
+      "rejected": { "value": "rejected", "aliases": ["rejected"] },
+      "cancelled": { "value": "cancelled", "aliases": ["cancelled", "canceled"] }
+    }
+  },
+  "release": {
+    "table": "rm_release",
+    "stateField": "state",
+    "states": {
+      "draft": { "value": "draft", "label": "Draft" },
+      "awaiting_approval": { "value": "awaiting_approval", "label": "Awaiting Approval" },
+      "approved": { "value": "approved", "label": "Approved" },
+      "scheduled": { "value": "scheduled", "label": "Scheduled" },
+      "implementation": { "value": "implementation", "label": "Implementation" },
+      "review": { "value": "review", "label": "Review" },
+      "closed": { "value": "closed", "label": "Closed Complete" },
+      "cancelled": { "value": "cancelled", "label": "Cancelled" }
+    }
+  },
+  "rules": [
+    {
+      "id": "canceled",
+      "when": { "changeState": ["canceled"] },
+      "releaseState": "cancelled",
+      "note": "Cancelled Change always drives a Cancelled Release."
+    },
+    {
+      "id": "closed",
+      "when": { "changeState": ["closed"] },
+      "releaseState": "closed",
+      "note": "Closed Change drives Closed Complete on the Release."
+    },
+    {
+      "id": "authorize-in-approval",
+      "when": {
+        "changeState": ["authorize", "approval"],
+        "changeApproval": ["requested", "not_requested", "rejected"]
+      },
+      "releaseState": "awaiting_approval",
+      "note": "Change in Authorize (or Approval) while approval is pending or rejected → Release Awaiting Approval."
+    },
+    {
+      "id": "authorize-approved",
+      "when": {
+        "changeState": ["authorize"],
+        "changeApproval": ["approved"]
+      },
+      "releaseState": "approved",
+      "note": "Authorize with an approved Change → Release Approved."
+    },
+    {
+      "id": "scheduled",
+      "when": { "changeState": ["scheduled"] },
+      "releaseState": "scheduled",
+      "note": "Scheduled Change → Scheduled Release."
+    },
+    {
+      "id": "implement",
+      "when": { "changeState": ["implement"] },
+      "releaseState": "implementation",
+      "note": "Implement Change → Implementation Release."
+    },
+    {
+      "id": "review",
+      "when": { "changeState": ["review"] },
+      "releaseState": "review",
+      "note": "Review Change → Review Release."
+    },
+    {
+      "id": "assess",
+      "when": { "changeState": ["assess"] },
+      "releaseState": "draft",
+      "note": "Assess Change → Draft Release (planning / assessment)."
+    },
+    {
+      "id": "new",
+      "when": { "changeState": ["new"] },
+      "releaseState": "draft",
+      "note": "New Change → Draft Release."
+    }
+  ]
+}

@@ -48,6 +48,39 @@ test('release create and copy flow', async () => {
     assert.equal(copied.title, 'v1.0.0 (copy)');
     assert.equal(copied.copiedFrom, created.id);
     assert.equal(copied.body, created.body);
+
+    const mapResponse = await fetch(`http://127.0.0.1:${PORT}/release-change-state-map`);
+    assert.equal(mapResponse.status, 200);
+    const map = await mapResponse.json();
+    assert.equal(map.version, 1);
+    assert.ok(map.rules.some((rule) => rule.releaseState === 'awaiting_approval'));
+
+    const resolveResponse = await fetch(`http://127.0.0.1:${PORT}/release-change-state-map/resolve`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        changeState: 'Authorize',
+        changeApproval: 'requested',
+        currentReleaseState: 'draft',
+      }),
+    });
+    assert.equal(resolveResponse.status, 200);
+    const resolved = await resolveResponse.json();
+    assert.equal(resolved.releaseState, 'awaiting_approval');
+    assert.equal(resolved.changed, true);
+
+    const backResponse = await fetch(`http://127.0.0.1:${PORT}/release-change-state-map/resolve`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        changeState: 'Assess',
+        changeApproval: 'not requested',
+        currentReleaseState: 'awaiting_approval',
+      }),
+    });
+    const movedBack = await backResponse.json();
+    assert.equal(movedBack.releaseState, 'draft');
+    assert.equal(movedBack.changed, true);
   } finally {
     server.kill();
     await once(server, 'exit');

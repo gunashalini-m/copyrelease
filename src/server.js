@@ -1,4 +1,5 @@
 import express from 'express';
+import { defaultMapper, loadStateMap } from './releaseChangeStateMap.js';
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
@@ -14,6 +15,20 @@ app.get('/health', (_req, res) => {
 
 app.get('/releases', (_req, res) => {
   res.json(Array.from(releases.values()));
+});
+
+app.get('/release-change-state-map', (_req, res) => {
+  res.json(loadStateMap());
+});
+
+app.post('/release-change-state-map/resolve', (req, res) => {
+  const { changeState, changeApproval, currentReleaseState } = req.body ?? {};
+  res.json(
+    defaultMapper.nextReleaseState(
+      { changeState, changeApproval },
+      currentReleaseState,
+    ),
+  );
 });
 
 app.post('/releases', (req, res) => {
