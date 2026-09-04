@@ -1,10 +1,12 @@
 /**
- * Business Rule 1 — Change Request
- * Table: Change Request [change_request]
+ * One Business Rule on Change Request [change_request]
  * When: after insert / after update
  * Condition: State changes OR Approval changes
  *
- * Only Releases whose parent is this Change (number or sys_id) are updated.
+ * A BR belongs to one table. Change state lives here, so this is the rule.
+ * Releases are found only by parent = this Change (sys_id or number).
+ * No parent means the Release is not in that query, so this script never
+ * moves it — it stays Draft.
  *
  * Paste from syncReleasesForThisChange() down into the Script field.
  *
@@ -24,7 +26,17 @@
 syncReleasesForThisChange();
 
 function syncReleasesForThisChange() {
-    var RELEASE = releaseChoices();
+    var RELEASE = {
+        "draft": "draft",
+        "awaiting_approval": "awaiting_approval",
+        "approved": "approved",
+        "scheduled": "scheduled",
+        "implementation": "implementation",
+        "review": "review",
+        "closed": "closed",
+        "cancelled": "cancelled"
+    };
+
     var target = releaseStateForChange(
         String(current.getValue("state") || ""),
         String(current.getValue("approval") || "").toLowerCase(),
@@ -41,34 +53,23 @@ function syncReleasesForThisChange() {
 
     var n = 0;
     while (rel.next()) {
-        if (String(rel.getValue("parent") || "") === "")
+        var parent = String(rel.getValue("parent") || "");
+        if (!parent)
             continue;
-        if (setReleaseState(rel, target))
-            n++;
+        if (String(rel.getValue("state") || "") === target)
+            continue;
+        rel.setValue("state", target);
+        rel.update();
+        n++;
     }
 
     if (n > 0)
         gs.info("Set " + n + " Release(s) to " + target + " from parent Change " +
-            current.getDisplayValue() + " (state=" + current.getValue("state") +
-            ", approval=" + current.getValue("approval") + ")");
+            current.getDisplayValue());
 }
 
-function releaseChoices() {
-    // Match these to rm_release.state on your instance.
-    return {
-        "draft": "draft",
-        "awaiting_approval": "awaiting_approval",
-        "approved": "approved",
-        "scheduled": "scheduled",
-        "implementation": "implementation",
-        "review": "review",
-        "closed": "closed",
-        "cancelled": "cancelled"
-    };
-}
-
-function changeChoices() {
-    return {
+function releaseStateForChange(state, approval, stateName, RELEASE) {
+    var CHANGE = {
         "new": "-5",
         "assess": "-4",
         "authorize": "-3",
@@ -78,10 +79,6 @@ function changeChoices() {
         "closed": "3",
         "canceled": "4"
     };
-}
-
-function releaseStateForChange(state, approval, stateName, RELEASE) {
-    var CHANGE = changeChoices();
     var name = String(stateName || "");
 
     if (state === CHANGE.canceled || name === "canceled" || name === "cancelled")
@@ -91,12 +88,8 @@ function releaseStateForChange(state, approval, stateName, RELEASE) {
 
     var authorize = state === CHANGE.authorize || name === "authorize" || name === "authorization";
     var approvalState = name === "approval" || state === "approval";
-
-    if (authorize || approvalState) {
-        if (approval === "approved")
-            return RELEASE.approved;
-        return RELEASE.awaiting_approval;
-    }
+    if (authorize || approvalState)
+        return approval === "approved" ? RELEASE.approved : RELEASE.awaiting_approval;
 
     if (state === CHANGE.scheduled || name === "scheduled")
         return RELEASE.scheduled;
@@ -110,12 +103,4 @@ function releaseStateForChange(state, approval, stateName, RELEASE) {
         return RELEASE.draft;
 
     return null;
-}
-
-function setReleaseState(rel, target) {
-    if (String(rel.getValue("state") || "") === String(target))
-        return false;
-    rel.setValue("state", target);
-    rel.update();
-    return true;
 }

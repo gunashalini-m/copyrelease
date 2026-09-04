@@ -1,8 +1,8 @@
 # Release state from Change state
 
-The only Change used is the one on **Release.parent** (Change number or sys_id). If parent is empty, the Release is **Draft** and stays there.
+This is **one Business Rule** on Change Request. Change state and approval live on that table, so that is the table the rule has to run on. The script then writes the matching state onto Releases whose **parent** is this Change (number or sys_id).
 
-When that Change's state or approval changes, including backwards, the Release is moved to match.
+A Release with no parent is never in that query, so this rule does not touch it. Leave `rm_release.state` defaulting to Draft and those records stay Draft.
 
 Format: [`data/release-change-state-map.json`](../data/release-change-state-map.json).
 
@@ -10,7 +10,7 @@ Format: [`data/release-change-state-map.json`](../data/release-change-state-map.
 
 | Release parent | Change state | Approval | Release state |
 | --- | --- | --- | --- |
-| empty | — | — | **Draft** |
+| empty | — | — | **Draft** (rule does not run) |
 | Change number | New | (any) | Draft |
 | Change number | Assess | (any) | Draft |
 | Change number | Authorize or Approval | requested, not requested, rejected, or blank | Awaiting Approval |
@@ -25,10 +25,8 @@ Format: [`data/release-change-state-map.json`](../data/release-change-state-map.
 
 ## Cases this covers
 
-- No parent on the Release → Draft only
-- Parent cleared later → back to Draft
-- Parent set to a Change that cannot be found → Draft
-- Only Releases whose parent is this Change are updated from the Change BR
+- No parent on the Release → not selected, stays Draft
+- Only Releases whose parent is this Change are updated
 - New → Draft
 - Assess → Draft
 - Authorize, approval still open → Awaiting Approval
@@ -39,21 +37,12 @@ Format: [`data/release-change-state-map.json`](../data/release-change-state-map.
 - Forward walk through the Change lifecycle
 - Backward walk (Scheduled → Authorize pending → Awaiting Approval; Authorize → Assess → Draft)
 - Canceled mid-flow → Cancelled
-- Unknown Change state: leave the Release alone (parent still present)
+- Unknown Change state: leave the Release alone
 - Already on the right Release state: skip the update
 
 ## Deploy
 
-**Rule 1 — Change Request** (`sync_release_state_from_change.js`)
-
-1. System Definition → Business Rules, new rule on Change Request.
+1. System Definition → Business Rules, one new rule on **Change Request**.
 2. After insert and after update, when State or Approval changes.
-3. Paste from `syncReleasesForThisChange();`.
-
-**Rule 2 — Release** (`apply_release_state_from_parent.js`)
-
-1. New rule on Release `[rm_release]`.
-2. Before insert and before update, when Parent changes (run on insert too).
-3. Paste from `applyStateFromParentChange();`.
-
-Set the `RELEASE` values to your `rm_release.state` choices.
+3. Paste from `syncReleasesForThisChange();` in `sync_release_state_from_change.js`.
+4. Set the `RELEASE` values to your `rm_release.state` choices.
