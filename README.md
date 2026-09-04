@@ -2,9 +2,9 @@
 
 A small API for creating and copying release notes, plus a ServiceNow **Release ↔ Change state mapping**.
 
-When a Change is in **Authorize** (or **Approval**) and approval is still pending, the linked Release is set to **Awaiting Approval**. Other Change states map the same way. The mapping is re-applied whenever the Change state or approval changes, including when the Change moves backward.
+When a Change is in **Authorize** or **Approval** and is not approved yet, the Release is set to **Awaiting Approval**. Other Change states map the same way. The mapping is applied from the Change as it is now, so if the Change goes back a step the Release goes back with it.
 
-Canonical mapping: [`data/release-change-state-map.json`](data/release-change-state-map.json). Deploy the after Business Rule from [`servicenow/sync_release_state_from_change.js`](servicenow/sync_release_state_from_change.js). See [`servicenow/README.md`](servicenow/README.md).
+Format: [`data/release-change-state-map.json`](data/release-change-state-map.json). Business Rule: [`servicenow/sync_release_state_from_change.js`](servicenow/sync_release_state_from_change.js). Details and the full case list: [`servicenow/README.md`](servicenow/README.md).
 
 ## Development
 
@@ -22,7 +22,7 @@ The server listens on port 3000 by default.
 - `POST /releases` — create a release (`{ "title": "...", "body": "..." }`)
 - `POST /releases/:id/copy` — copy an existing release
 - `GET /release-change-state-map` — Release ↔ Change state mapping format
-- `POST /release-change-state-map/resolve` — project Release state from `{ "changeState", "changeApproval", "currentReleaseState" }`
+- `POST /release-change-state-map/resolve` — next Release state from `{ "changeState", "changeApproval", "currentReleaseState" }`
 
 ## Tests
 

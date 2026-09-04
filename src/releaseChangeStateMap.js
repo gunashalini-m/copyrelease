@@ -2,143 +2,132 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const DEFAULT_MAP_PATH = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '..',
-  'data',
-  'release-change-state-map.json',
-);
+const MAP_FILE = join(dirname(fileURLToPath(import.meta.url)), '..', 'data', 'release-change-state-map.json');
 
-export function loadStateMap(path = DEFAULT_MAP_PATH) {
+export function loadStateMap(path = MAP_FILE) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
-function normalize(value) {
+function clean(value) {
   return String(value ?? '')
     .trim()
     .toLowerCase()
     .replace(/[_-]+/g, ' ');
 }
 
-function buildLookup(entries) {
-  const lookup = new Map();
-  for (const [key, def] of Object.entries(entries)) {
-    const tokens = [key, def.value, ...(def.aliases ?? [])];
-    for (const token of tokens) {
-      lookup.set(normalize(token), key);
+function lookupChangeState(map, raw) {
+  const token = clean(raw);
+  if (!token) {
+    return null;
+  }
+
+  const values = map.changeStateValues;
+  if (values[token]) {
+    return token;
+  }
+
+  for (const [name, snValue] of Object.entries(values)) {
+    if (clean(snValue) === token) {
+      return name;
     }
   }
-  return lookup;
+
+  return map.changeStateAliases[token] || null;
 }
 
-export function createMapper(stateMap = loadStateMap()) {
-  const stateLookup = buildLookup(stateMap.change.states);
-  const approvalLookup = buildLookup(stateMap.change.approvals);
+function lookupApproval(raw) {
+  if (raw == null || String(raw).trim() === '') {
+    return '';
+  }
+  return clean(raw);
+}
 
-  function resolveChangeState(raw) {
-    return stateLookup.get(normalize(raw)) ?? null;
+function isPendingApproval(map, approval) {
+  const pending = map.authorizeAndApproval.pendingApprovals.map(clean);
+  return pending.includes(approval);
+}
+
+function pack(map, changeState, changeApproval, releaseKey) {
+  return {
+    matched: true,
+    reason: 'mapped',
+    changeState,
+    changeApproval: changeApproval || 'not_requested',
+    releaseState: releaseKey,
+    releaseStateValue: map.releaseStateValues[releaseKey] || releaseKey,
+    releaseStateLabel: map.releaseStateLabels[releaseKey] || releaseKey,
+  };
+}
+
+function miss(reason, changeState, changeApproval) {
+  return {
+    matched: false,
+    reason,
+    changeState: changeState ?? null,
+    changeApproval: changeApproval ?? null,
+    releaseState: null,
+    releaseStateValue: null,
+    releaseStateLabel: null,
+  };
+}
+
+/**
+ * Pick the Release state from the Change as it stands now.
+ * Call this again whenever state or approval changes; going backwards is fine.
+ */
+export function mapChangeToRelease(input = {}, map = loadStateMap()) {
+  const changeState = lookupChangeState(map, input.changeState);
+  if (!changeState) {
+    return miss('unknown_change_state', input.changeState, input.changeApproval);
   }
 
-  function resolveChangeApproval(raw) {
-    if (raw == null || String(raw).trim() === '') {
-      return 'not_requested';
+  const changeApproval = lookupApproval(input.changeApproval);
+  const auth = map.authorizeAndApproval;
+
+  if (auth.changeStates.includes(changeState)) {
+    if (!isPendingApproval(map, changeApproval) && changeApproval === 'approved') {
+      return pack(map, changeState, changeApproval, auth.releaseWhenApproved);
     }
-    return approvalLookup.get(normalize(raw)) ?? null;
+    return pack(map, changeState, changeApproval, auth.releaseWhenPending);
   }
 
-  function matchRule(rule, changeStateKey, changeApprovalKey) {
-    const when = rule.when ?? {};
-    const states = when.changeState ?? [];
-    if (states.length && !states.includes(changeStateKey)) {
-      return false;
-    }
-    const approvals = when.changeApproval;
-    if (approvals && approvals.length) {
-      if (!changeApprovalKey || !approvals.includes(changeApprovalKey)) {
-        return false;
-      }
-    }
-    return true;
+  const releaseKey = map.map[changeState];
+  if (!releaseKey) {
+    return miss('no_matching_rule', changeState, changeApproval);
   }
+  return pack(map, changeState, changeApproval, releaseKey);
+}
 
-  function mapChangeToRelease({ changeState, changeApproval } = {}) {
-    const changeStateKey = resolveChangeState(changeState);
-    if (!changeStateKey) {
-      return {
-        matched: false,
-        reason: 'unknown_change_state',
-        changeState: changeState ?? null,
-        changeApproval: changeApproval ?? null,
-        releaseState: null,
-        releaseStateValue: null,
-        releaseStateLabel: null,
-        ruleId: null,
-      };
-    }
-
-    const changeApprovalKey = resolveChangeApproval(changeApproval);
-
-    for (const rule of stateMap.rules) {
-      if (!matchRule(rule, changeStateKey, changeApprovalKey)) {
-        continue;
-      }
-      const releaseDef = stateMap.release.states[rule.releaseState];
-      return {
-        matched: true,
-        reason: 'mapped',
-        changeState: changeStateKey,
-        changeApproval: changeApprovalKey,
-        releaseState: rule.releaseState,
-        releaseStateValue: releaseDef?.value ?? rule.releaseState,
-        releaseStateLabel: releaseDef?.label ?? rule.releaseState,
-        ruleId: rule.id,
-      };
-    }
-
-    return {
-      matched: false,
-      reason: 'no_matching_rule',
-      changeState: changeStateKey,
-      changeApproval: changeApprovalKey,
-      releaseState: null,
-      releaseStateValue: null,
-      releaseStateLabel: null,
-      ruleId: null,
-    };
-  }
-
-  /**
-   * Always project from the current Change snapshot.
-   * If the Change moves backward, the Release follows the same mapping.
-   */
-  function nextReleaseState(changeSnapshot, currentReleaseState) {
-    const mapped = mapChangeToRelease(changeSnapshot);
-    if (!mapped.matched) {
-      return {
-        ...mapped,
-        changed: false,
-        previousReleaseState: currentReleaseState ?? null,
-      };
-    }
-
-    const previous = currentReleaseState == null ? null : normalize(currentReleaseState);
-    const next = normalize(mapped.releaseStateValue);
+export function nextReleaseState(changeSnapshot, currentReleaseState, map = loadStateMap()) {
+  const mapped = mapChangeToRelease(changeSnapshot, map);
+  if (!mapped.matched) {
     return {
       ...mapped,
-      changed: previous !== next,
+      changed: false,
       previousReleaseState: currentReleaseState ?? null,
     };
   }
 
+  const same = clean(currentReleaseState) === clean(mapped.releaseStateValue);
   return {
-    stateMap,
-    mapChangeToRelease,
-    nextReleaseState,
-    resolveChangeState,
-    resolveChangeApproval,
+    ...mapped,
+    changed: currentReleaseState == null ? true : !same,
+    previousReleaseState: currentReleaseState ?? null,
   };
 }
 
-export const defaultMapper = createMapper();
-export const mapChangeToRelease = defaultMapper.mapChangeToRelease;
-export const nextReleaseState = defaultMapper.nextReleaseState;
+const defaultMap = loadStateMap();
+
+export const defaultMapper = {
+  stateMap: defaultMap,
+  mapChangeToRelease: (snapshot) => mapChangeToRelease(snapshot, defaultMap),
+  nextReleaseState: (snapshot, current) => nextReleaseState(snapshot, current, defaultMap),
+};
+
+export function createMapper(stateMap = loadStateMap()) {
+  return {
+    stateMap,
+    mapChangeToRelease: (snapshot) => mapChangeToRelease(snapshot, stateMap),
+    nextReleaseState: (snapshot, current) => nextReleaseState(snapshot, current, stateMap),
+  };
+}

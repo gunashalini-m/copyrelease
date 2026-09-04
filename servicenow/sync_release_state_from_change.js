@@ -1,38 +1,28 @@
 /**
- * Sync Release state from Change state
+ * Business Rule: Sync Release state from Change
+ * Table: Change Request [change_request]
+ * When: after insert / after update
+ * Condition: State changes OR Approval changes
  *
- * Business Rule on change_request:
- *   Name: Sync Release state from Change
- *   Table: Change Request [change_request]
- *   When: after
- *   Insert: true
- *   Update: true
- *   Filter: State changes OR Approval changes
+ * Paste from syncLinkedReleases() down into the Script field.
  *
- * Paste syncLinkedReleases() downward into the Script field (ServiceNow ES5).
+ * Mapping:
+ *   New / Assess                              → Draft
+ *   Authorize or Approval, not yet approved   → Awaiting Approval
+ *   Authorize or Approval, approved           → Approved
+ *   Scheduled                                 → Scheduled
+ *   Implement                                 → Implementation
+ *   Review                                    → Review
+ *   Closed                                    → Closed Complete
+ *   Canceled                                  → Cancelled
  *
- * Mapping (edit RELEASE_STATE / rules if your instance uses different choice values):
- *   Change New / Assess                         → Release Draft
- *   Change Authorize or Approval + not approved → Release Awaiting Approval
- *   Change Authorize + approved                 → Release Approved
- *   Change Scheduled                            → Release Scheduled
- *   Change Implement                            → Release Implementation
- *   Change Review                               → Release Review
- *   Change Closed                               → Release Closed Complete
- *   Change Canceled                             → Release Cancelled
- *
- * The mapping is a projection of the current Change snapshot. If the Change
- * moves backward (Scheduled → Authorize), the Release moves with it.
- *
- * Linked Releases are found by:
- *   1. rm_release.change_request = this Change
- *   2. change_request.parent = rm_release
- *   3. Record Producer variable named change_request on rm_release
+ * Always map from the current Change. If it goes back a step, the Release
+ * goes back too.
  */
 syncLinkedReleases();
 
 function syncLinkedReleases() {
-    var CHANGE_STATE = {
+    var CHANGE = {
         "new": "-5",
         "assess": "-4",
         "authorize": "-3",
@@ -43,7 +33,8 @@ function syncLinkedReleases() {
         "canceled": "4"
     };
 
-    var RELEASE_STATE = {
+    // Match these to rm_release.state on your instance.
+    var RELEASE = {
         "draft": "draft",
         "awaiting_approval": "awaiting_approval",
         "approved": "approved",
@@ -54,92 +45,78 @@ function syncLinkedReleases() {
         "cancelled": "cancelled"
     };
 
-    var changeState = String(current.getValue("state") || "");
-    var changeApproval = String(current.getValue("approval") || "").toLowerCase();
-    var changeStateDisplay = String(current.getDisplayValue("state") || "");
-    var targetReleaseState = mapChangeToReleaseState(
-        changeState,
-        changeApproval,
-        changeStateDisplay,
-        CHANGE_STATE,
-        RELEASE_STATE
-    );
-
-    if (!targetReleaseState) {
+    var state = String(current.getValue("state") || "");
+    var approval = String(current.getValue("approval") || "").toLowerCase();
+    var stateName = String(current.getDisplayValue("state") || "").toLowerCase();
+    var target = releaseStateForChange(state, approval, stateName, CHANGE, RELEASE);
+    if (!target)
         return;
+
+    var ids = {};
+    findReleasesByChangeField(current, ids);
+    findReleaseParent(current, ids);
+    findReleasesByVariable(current, ids);
+
+    var n = 0;
+    for (var id in ids) {
+        if (setReleaseState(id, target))
+            n++;
     }
 
-    var releaseIds = {};
-    collectDirectReleases(current, releaseIds);
-    collectParentRelease(current, releaseIds);
-    collectVariableLinkedReleases(current, releaseIds);
-
-    var updated = 0;
-    for (var releaseId in releaseIds) {
-        if (applyReleaseState(releaseId, targetReleaseState))
-            updated++;
-    }
-
-    if (updated > 0) {
-        gs.info("Synced " + updated + " Release(s) to state " + targetReleaseState +
-            " from Change " + current.getDisplayValue() +
-            " (state=" + changeState + ", approval=" + changeApproval + ")");
-    }
+    if (n > 0)
+        gs.info("Release state set to " + target + " from Change " + current.getDisplayValue() +
+            " (state=" + state + ", approval=" + approval + ")");
 }
 
-function mapChangeToReleaseState(changeState, changeApproval, changeStateDisplay, CHANGE_STATE, RELEASE_STATE) {
-    var state = String(changeState);
-    var approval = String(changeApproval || "").toLowerCase();
-    var stateName = String(changeStateDisplay || "").toLowerCase();
+function releaseStateForChange(state, approval, stateName, CHANGE, RELEASE) {
+    var name = String(stateName || "");
 
-    if (state === CHANGE_STATE.canceled || stateName === "canceled" || stateName === "cancelled")
-        return RELEASE_STATE.cancelled;
-    if (state === CHANGE_STATE.closed || stateName === "closed" || stateName.indexOf("closed") === 0)
-        return RELEASE_STATE.closed;
+    if (state === CHANGE.canceled || name === "canceled" || name === "cancelled")
+        return RELEASE.cancelled;
+    if (state === CHANGE.closed || name === "closed" || name.indexOf("closed") === 0)
+        return RELEASE.closed;
 
-    var inAuthorize = state === CHANGE_STATE.authorize ||
-        stateName === "authorize" ||
-        stateName === "authorization";
-    var inApprovalState = stateName === "approval" || state === "approval";
+    var authorize = state === CHANGE.authorize || name === "authorize" || name === "authorization";
+    var approvalState = name === "approval" || state === "approval";
 
-    if (inAuthorize || inApprovalState) {
-        if (approval === "approved" && inAuthorize && !inApprovalState)
-            return RELEASE_STATE.approved;
-        return RELEASE_STATE.awaiting_approval;
+    if (authorize || approvalState) {
+        if (approval === "approved")
+            return RELEASE.approved;
+        return RELEASE.awaiting_approval;
     }
 
-    if (state === CHANGE_STATE.scheduled || stateName === "scheduled")
-        return RELEASE_STATE.scheduled;
-    if (state === CHANGE_STATE.implement || stateName === "implement" || stateName === "implementation")
-        return RELEASE_STATE.implementation;
-    if (state === CHANGE_STATE.review || stateName === "review")
-        return RELEASE_STATE.review;
-    if (state === CHANGE_STATE.assess || stateName === "assess")
-        return RELEASE_STATE.draft;
-    if (state === CHANGE_STATE["new"] || stateName === "new" || stateName === "pending")
-        return RELEASE_STATE.draft;
+    if (state === CHANGE.scheduled || name === "scheduled")
+        return RELEASE.scheduled;
+    if (state === CHANGE.implement || name === "implement" || name === "implementation")
+        return RELEASE.implementation;
+    if (state === CHANGE.review || name === "review")
+        return RELEASE.review;
+    if (state === CHANGE.assess || name === "assess")
+        return RELEASE.draft;
+    if (state === CHANGE["new"] || name === "new" || name === "pending")
+        return RELEASE.draft;
 
     return null;
 }
 
-function collectDirectReleases(changeGr, releaseIds) {
+function findReleasesByChangeField(changeGr, ids) {
     var rel = new GlideRecord("rm_release");
     rel.addQuery("change_request", changeGr.getUniqueValue());
     rel.query();
     while (rel.next())
-        releaseIds[String(rel.getUniqueValue())] = true;
+        ids[String(rel.getUniqueValue())] = true;
 }
 
-function collectParentRelease(changeGr, releaseIds) {
+function findReleaseParent(changeGr, ids) {
     var parentId = String(changeGr.getValue("parent") || "");
     if (!parentId)
         return;
     var rel = new GlideRecord("rm_release");
     if (rel.get(parentId))
-        releaseIds[parentId] = true;
+        ids[parentId] = true;
 }
 
-function collectVariableLinkedReleases(changeGr, releaseIds) {
+function findReleasesByVariable(changeGr, ids) {
     var qa = new GlideRecord("question_answer");
     qa.addQuery("table_name", "rm_release");
     qa.addQuery("value", changeGr.getUniqueValue());
@@ -148,17 +125,17 @@ function collectVariableLinkedReleases(changeGr, releaseIds) {
     while (qa.next()) {
         var releaseId = String(qa.getValue("table_sys_id") || "");
         if (releaseId)
-            releaseIds[releaseId] = true;
+            ids[releaseId] = true;
     }
 }
 
-function applyReleaseState(releaseId, targetState) {
+function setReleaseState(releaseId, target) {
     var rel = new GlideRecord("rm_release");
     if (!rel.get(releaseId))
         return false;
-    if (String(rel.getValue("state") || "") === String(targetState))
+    if (String(rel.getValue("state") || "") === String(target))
         return false;
-    rel.setValue("state", targetState);
+    rel.setValue("state", target);
     rel.update();
     return true;
 }

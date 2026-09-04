@@ -52,8 +52,8 @@ test('release create and copy flow', async () => {
     const mapResponse = await fetch(`http://127.0.0.1:${PORT}/release-change-state-map`);
     assert.equal(mapResponse.status, 200);
     const map = await mapResponse.json();
-    assert.equal(map.version, 1);
-    assert.ok(map.rules.some((rule) => rule.releaseState === 'awaiting_approval'));
+    assert.equal(map.authorizeAndApproval.releaseWhenPending, 'awaiting_approval');
+    assert.equal(map.map.scheduled, 'scheduled');
 
     const resolveResponse = await fetch(`http://127.0.0.1:${PORT}/release-change-state-map/resolve`, {
       method: 'POST',
