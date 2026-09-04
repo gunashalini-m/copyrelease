@@ -63,7 +63,8 @@
     "pendingApprovals": ["requested", "not requested", "rejected", "cancelled", "canceled", ""]
   },
   "testCases": [
-    "No parent on the Release → Change BR does not select it, stays Draft",
+    "No parent on the Release → Draft (Release before-rule)",
+    "Parent cleared → Draft",
     "Only the Change in Release.parent is used; other Change links are ignored",
     "New → Draft",
     "Assess → Draft",

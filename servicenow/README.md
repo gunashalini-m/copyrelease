@@ -1,8 +1,15 @@
 # Release state from Change state
 
-This is **one Business Rule** on Change Request. Change state and approval live on that table, so that is the table the rule has to run on. The script then writes the matching state onto Releases whose **parent** is this Change (number or sys_id).
+Two tables, two thin Business Rules, **one Script Include**. That is the cheap way to cover both events without running the mapping twice.
 
-A Release with no parent is never in that query, so this rule does not touch it. Leave `rm_release.state` defaulting to Draft and those records stay Draft.
+| Event | Table | When | Call |
+| --- | --- | --- | --- |
+| Change state or approval changes (including backwards) | Change Request | **after**, State or Approval changes | `syncFromChange(current)` |
+| Parent set, cleared, or Release inserted | Release | **before**, Parent changes / insert | `applyFromParent(current)` |
+
+The after-rule on Change finds Releases with `parent` = this Change, writes state, then `setWorkflow(false)` so the Release rule does not fire again on that update. The before-rule on Release sets `current.state` on the same save — empty parent → Draft, no extra `update()`.
+
+Do not put this on `task`. Both records extend task, and that rule would run on every incident, problem, and catalog item.
 
 Format: [`data/release-change-state-map.json`](../data/release-change-state-map.json).
 
@@ -10,7 +17,7 @@ Format: [`data/release-change-state-map.json`](../data/release-change-state-map.
 
 | Release parent | Change state | Approval | Release state |
 | --- | --- | --- | --- |
-| empty | — | — | **Draft** (rule does not run) |
+| empty | — | — | **Draft** |
 | Change number | New | (any) | Draft |
 | Change number | Assess | (any) | Draft |
 | Change number | Authorize or Approval | requested, not requested, rejected, or blank | Awaiting Approval |
@@ -21,28 +28,27 @@ Format: [`data/release-change-state-map.json`](../data/release-change-state-map.
 | Change number | Closed | (any) | Closed Complete |
 | Change number | Canceled | (any) | Cancelled |
 
-`rm_release.change_request` and Record Producer variables are not used.
+Only `rm_release.parent` is used.
 
 ## Cases this covers
 
-- No parent on the Release → not selected, stays Draft
-- Only Releases whose parent is this Change are updated
-- New → Draft
-- Assess → Draft
-- Authorize, approval still open → Awaiting Approval
-- Approval state, still waiting → Awaiting Approval
-- Authorize (or Approval) after approved → Approved
+- No parent → Draft (Release before-rule)
+- Parent cleared → Draft
+- Parent set to a Change that cannot be found → Draft
+- Change state/approval changes → only Releases parented to that Change
+- New / Assess → Draft
+- Authorize or Approval, still waiting → Awaiting Approval
+- Authorize or Approval, approved → Approved
 - Scheduled / Implement / Review / Closed / Canceled
 - Numeric ServiceNow values (`-5`, `-3`, …) as well as labels
-- Forward walk through the Change lifecycle
-- Backward walk (Scheduled → Authorize pending → Awaiting Approval; Authorize → Assess → Draft)
+- Forward and backward walks through Change states
 - Canceled mid-flow → Cancelled
-- Unknown Change state: leave the Release alone
-- Already on the right Release state: skip the update
+- Unknown Change state: leave the Release
+- Already on the mapped state: skip the write
+- Change-driven update does not re-enter the Release rule (`setWorkflow(false)`)
 
 ## Deploy
 
-1. System Definition → Business Rules, one new rule on **Change Request**.
-2. After insert and after update, when State or Approval changes.
-3. Paste from `syncReleasesForThisChange();` in `sync_release_state_from_change.js`.
-4. Set the `RELEASE` values to your `rm_release.state` choices.
+1. Script Include `ReleaseChangeState` from [`script_include_ReleaseChangeState.js`](script_include_ReleaseChangeState.js). Client callable: false. Set the `RELEASE` choice values to match your instance.
+2. Business Rule on **Change Request**, after insert/update, State or Approval changes. Script: [`sync_release_state_from_change.js`](sync_release_state_from_change.js).
+3. Business Rule on **Release**, before insert/update, Parent changes (run on insert). Script: [`br_release_from_parent.js`](br_release_from_parent.js).
