@@ -2,9 +2,9 @@
 
 A small API for creating and copying release notes, plus a ServiceNow **Release ↔ Change state mapping**.
 
-When a Change is in **Authorize** or **Approval** and is not approved yet, the Release is set to **Awaiting Approval**. Mapping is a Decision Table, read with `sn_dt.DecisionTableAPI` (`u_` names and `.getValue()`). Only **Release.parent** is used. No parent stays **Draft**.
+When a Change is in **Authorize** or **Authorize Approval**, the Release is set to **Awaiting Approval**. Implemented states map to **Deploy/Launch**; Closed variants map as in Decision Table **Release to Change state mapping**. Only **Release.parent** is used.
 
-Paste-ready Change Business Rule: [`servicenow/sync_release_state_from_change.js`](servicenow/sync_release_state_from_change.js). Details: [`servicenow/README.md`](servicenow/README.md).
+Paste-ready Change Business Rule: [`servicenow/sync_release_state_from_change.js`](servicenow/sync_release_state_from_change.js).
 
 ## Development
 
