@@ -3,27 +3,16 @@
  *   Name: ReleaseChangeState
  *   Client callable: false
  *
- * Mapping is the Decision Table. Both Business Rules call this class.
- *
- * Decision Table (Workflow Studio → Decision tables):
- *   Input:  Change State     → column name u_change_state
- *   Input:  Change Approval  → column name u_change_approval  (optional but needed
- *                              to split Authorize pending vs approved)
- *   Result: Release State    → column name u_release_state
- *
- * getDecision() returns a GlideRecord-like answer. JSON.stringify looks empty.
- * Read the result with .getValue() / .getDisplayValue(), not stringify.
+ * Used by the Release before-rule (parent empty → Draft).
+ * Change after-rule can call syncFromChange, or paste
+ * sync_release_state_from_change.js as a standalone script.
  */
 var ReleaseChangeState = Class.create();
 ReleaseChangeState.prototype = {
     initialize: function() {
-        // sys_id from the Decision Table URL:
-        // /now/decisiondesigner/decisiontable/<sys_id>
-        this.DECISION_TABLE = "YOUR_DECISION_TABLE_SYS_ID";
-
-        this.RELEASE = {
-            draft: "draft"
-        };
+        this.DECISION_TABLE_SYS_ID = "";
+        this.DECISION_TABLE_NAME = "Change to Release State";
+        this.RELEASE = { draft: "draft" };
     },
 
     syncFromChange: function(changeGr) {
@@ -69,43 +58,129 @@ ReleaseChangeState.prototype = {
     },
 
     stateForChange: function(changeGr) {
-        return this.stateFromDecision(
-            String(changeGr.getValue("state") || ""),
-            String(changeGr.getValue("approval") || "")
+        var changeState = String(changeGr.getValue("state") || "");
+        var changeApproval = String(changeGr.getValue("approval") || "");
+        var fromDt = this.stateFromDecision(changeState, changeApproval);
+        if (fromDt)
+            return fromDt;
+        return this.stateFromMap(
+            changeState,
+            changeApproval,
+            String(changeGr.getDisplayValue("state") || "").toLowerCase()
         );
     },
 
     stateFromDecision: function(changeState, changeApproval) {
-        if (!this.DECISION_TABLE || this.DECISION_TABLE.indexOf("YOUR_") === 0) {
-            gs.error("ReleaseChangeState: set DECISION_TABLE to the Decision Table sys_id");
+        var id = this.DECISION_TABLE_SYS_ID;
+        if (!id)
+            id = this._findDecisionTableId(this.DECISION_TABLE_NAME);
+        if (!id)
             return null;
-        }
 
         var dt = new sn_dt.DecisionTableAPI();
-        var inputs = {};
-        // Names must match sys_decision_input.column_name (u_ + lowercase + underscores).
-        inputs.u_change_state = changeState;
-        inputs.u_change_approval = changeApproval;
+        var attempts = [
+            { u_change_state: changeState, u_change_approval: changeApproval },
+            { u_change_state: changeState }
+        ];
 
-        var response = dt.getDecision(this.DECISION_TABLE, inputs);
-        if (!response || !response.result_elements) {
-            gs.info("ReleaseChangeState: no decision for state=" + changeState +
-                " approval=" + changeApproval);
-            return null;
+        for (var i = 0; i < attempts.length; i++) {
+            var response = dt.getDecision(id, attempts[i]);
+            var value = this._readReleaseAnswer(response);
+            if (value)
+                return value;
         }
-
-        return this._answerValue(response.result_elements.u_release_state);
+        return null;
     },
 
-    _answerValue: function(element) {
-        if (element == null)
+    stateFromMap: function(state, approval, stateName) {
+        var C = {
+            "new": "-5",
+            assess: "-4",
+            authorize: "-3",
+            scheduled: "-2",
+            implement: "-1",
+            review: "0",
+            closed: "3",
+            canceled: "4"
+        };
+        var R = {
+            draft: "draft",
+            awaiting_approval: "awaiting_approval",
+            approved: "approved",
+            scheduled: "scheduled",
+            implementation: "implementation",
+            review: "review",
+            closed: "closed",
+            cancelled: "cancelled"
+        };
+        var name = String(stateName || "");
+        approval = String(approval || "").toLowerCase();
+
+        if (state === C.canceled || name === "canceled" || name === "cancelled")
+            return R.cancelled;
+        if (state === C.closed || name === "closed" || name.indexOf("closed") === 0)
+            return R.closed;
+
+        var authorize = state === C.authorize || name === "authorize" || name === "authorization";
+        var approvalState = name === "approval" || state === "approval";
+        if (authorize || approvalState)
+            return approval === "approved" ? R.approved : R.awaiting_approval;
+
+        if (state === C.scheduled || name === "scheduled")
+            return R.scheduled;
+        if (state === C.implement || name === "implement" || name === "implementation")
+            return R.implementation;
+        if (state === C.review || name === "review")
+            return R.review;
+        if (state === C.assess || name === "assess")
+            return R.draft;
+        if (state === C["new"] || name === "new" || name === "pending")
+            return R.draft;
+
+        return null;
+    },
+
+    _findDecisionTableId: function(name) {
+        if (!name)
             return null;
-        if (typeof element.getValue === "function") {
-            var v = String(element.getValue() || "");
-            return v || null;
+        var gr = new GlideRecord("sys_decision");
+        gr.addQuery("name", name);
+        gr.query();
+        if (gr.next())
+            return gr.getUniqueValue();
+        return null;
+    },
+
+    _readReleaseAnswer: function(response) {
+        if (!response || !response.result_elements)
+            return null;
+        var el = response.result_elements;
+        var names = ["u_release_state", "release_state", "u_release", "release"];
+        for (var i = 0; i < names.length; i++) {
+            var v = this._glideVal(el[names[i]]);
+            if (v)
+                return v;
         }
-        var s = String(element);
-        return s || null;
+        for (var key in el) {
+            if (!el.hasOwnProperty(key))
+                continue;
+            if (String(key).toLowerCase().indexOf("release") === -1)
+                continue;
+            v = this._glideVal(el[key]);
+            if (v)
+                return v;
+        }
+        return null;
+    },
+
+    _glideVal: function(element) {
+        if (element == null || element === undefined)
+            return "";
+        if (typeof element.getValue === "function")
+            return String(element.getValue() || "");
+        if (typeof element.getDisplayValue === "function")
+            return String(element.getDisplayValue() || "");
+        return String(element);
     },
 
     _getChange: function(parent) {
