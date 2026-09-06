@@ -2,9 +2,9 @@
 
 A small API for creating and copying release notes, plus a ServiceNow **Release ↔ Change state mapping**.
 
-When a Change is in **Authorize** or **Approval** and is not approved yet, the Release is set to **Awaiting Approval**. Other Change states map the same way. The only Change used is **Release.parent**. No parent means the Release is not linked, so it stays **Draft**. The mapping is applied from that Change as it is now, so if it goes back a step the Release goes back with it.
+When a Change is in **Authorize** or **Approval** and is not approved yet, the Release is set to **Awaiting Approval**. Other Change states map the same way. The only Change used is **Release.parent**. No parent means the Release is not linked, so it stays **Draft**. The mapping is a ServiceNow **Decision Table**, called from two thin Business Rules.
 
-Format: [`data/release-change-state-map.json`](data/release-change-state-map.json). Script Include plus two thin Business Rules: [`servicenow/README.md`](servicenow/README.md).
+Format: [`data/release-change-state-map.json`](data/release-change-state-map.json). Decision Table + Script Include: [`servicenow/README.md`](servicenow/README.md).
 
 ## Development
 

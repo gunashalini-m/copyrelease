@@ -3,39 +3,29 @@
  *   Name: ReleaseChangeState
  *   Client callable: false
  *
- * Mapping lives here once. Both Business Rules call this class.
+ * Mapping is the Decision Table. Both Business Rules call this class.
  *
- *   Change state / approval changes  → syncFromChange(current)
- *   Release parent set or cleared    → applyFromParent(current)  // before BR
+ * Decision Table (Workflow Studio → Decision tables):
+ *   Input:  Change State     → column name u_change_state
+ *   Input:  Change Approval  → column name u_change_approval  (optional but needed
+ *                              to split Authorize pending vs approved)
+ *   Result: Release State    → column name u_release_state
+ *
+ * getDecision() returns a GlideRecord-like answer. JSON.stringify looks empty.
+ * Read the result with .getValue() / .getDisplayValue(), not stringify.
  */
 var ReleaseChangeState = Class.create();
 ReleaseChangeState.prototype = {
     initialize: function() {
+        // sys_id from the Decision Table URL:
+        // /now/decisiondesigner/decisiontable/<sys_id>
+        this.DECISION_TABLE = "YOUR_DECISION_TABLE_SYS_ID";
+
         this.RELEASE = {
-            draft: "draft",
-            awaiting_approval: "awaiting_approval",
-            approved: "approved",
-            scheduled: "scheduled",
-            implementation: "implementation",
-            review: "review",
-            closed: "closed",
-            cancelled: "cancelled"
-        };
-        this.CHANGE = {
-            "new": "-5",
-            assess: "-4",
-            authorize: "-3",
-            scheduled: "-2",
-            implement: "-1",
-            review: "0",
-            closed: "3",
-            canceled: "4"
+            draft: "draft"
         };
     },
 
-    // After BR on change_request when state or approval changes.
-    // One query: Releases whose parent is this Change.
-    // setWorkflow(false) so the Release BR does not run again on those updates.
     syncFromChange: function(changeGr) {
         var target = this.stateForChange(changeGr);
         if (!target)
@@ -60,8 +50,6 @@ ReleaseChangeState.prototype = {
         return n;
     },
 
-    // Before BR on rm_release when parent changes (and on insert).
-    // Writes current.state in place — no extra GlideRecord.update.
     applyFromParent: function(releaseGr) {
         var parent = String(releaseGr.getValue("parent") || "").trim();
         if (!parent) {
@@ -81,48 +69,52 @@ ReleaseChangeState.prototype = {
     },
 
     stateForChange: function(changeGr) {
-        return this.mapState(
+        return this.stateFromDecision(
             String(changeGr.getValue("state") || ""),
-            String(changeGr.getValue("approval") || "").toLowerCase(),
-            String(changeGr.getDisplayValue("state") || "").toLowerCase()
+            String(changeGr.getValue("approval") || "")
         );
     },
 
-    mapState: function(state, approval, stateName) {
-        var C = this.CHANGE;
-        var R = this.RELEASE;
-        var name = String(stateName || "");
+    stateFromDecision: function(changeState, changeApproval) {
+        if (!this.DECISION_TABLE || this.DECISION_TABLE.indexOf("YOUR_") === 0) {
+            gs.error("ReleaseChangeState: set DECISION_TABLE to the Decision Table sys_id");
+            return null;
+        }
 
-        if (state === C.canceled || name === "canceled" || name === "cancelled")
-            return R.cancelled;
-        if (state === C.closed || name === "closed" || name.indexOf("closed") === 0)
-            return R.closed;
+        var dt = new sn_dt.DecisionTableAPI();
+        var inputs = {};
+        // Names must match sys_decision_input.column_name (u_ + lowercase + underscores).
+        inputs.u_change_state = changeState;
+        inputs.u_change_approval = changeApproval;
 
-        var authorize = state === C.authorize || name === "authorize" || name === "authorization";
-        var approvalState = name === "approval" || state === "approval";
-        if (authorize || approvalState)
-            return approval === "approved" ? R.approved : R.awaiting_approval;
+        var response = dt.getDecision(this.DECISION_TABLE, inputs);
+        if (!response || !response.result_elements) {
+            gs.info("ReleaseChangeState: no decision for state=" + changeState +
+                " approval=" + changeApproval);
+            return null;
+        }
 
-        if (state === C.scheduled || name === "scheduled")
-            return R.scheduled;
-        if (state === C.implement || name === "implement" || name === "implementation")
-            return R.implementation;
-        if (state === C.review || name === "review")
-            return R.review;
-        if (state === C.assess || name === "assess")
-            return R.draft;
-        if (state === C["new"] || name === "new" || name === "pending")
-            return R.draft;
+        return this._answerValue(response.result_elements.u_release_state);
+    },
 
-        return null;
+    _answerValue: function(element) {
+        if (element == null)
+            return null;
+        if (typeof element.getValue === "function") {
+            var v = String(element.getValue() || "");
+            return v || null;
+        }
+        var s = String(element);
+        return s || null;
     },
 
     _getChange: function(parent) {
-        var chg = new GlideRecord("change_request");
-        if (chg.get(parent))
-            return chg;
-        if (chg.get("number", parent))
-            return chg;
+        var byId = new GlideRecord("change_request");
+        if (byId.get(parent))
+            return byId;
+        var byNumber = new GlideRecord("change_request");
+        if (byNumber.get("number", parent))
+            return byNumber;
         return null;
     },
 

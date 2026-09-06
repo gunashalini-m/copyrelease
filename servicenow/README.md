@@ -1,54 +1,52 @@
 # Release state from Change state
 
-Two tables, two thin Business Rules, **one Script Include**. That is the cheap way to cover both events without running the mapping twice.
+Two thin Business Rules call Script Include `ReleaseChangeState`. The mapping itself is a **Decision Table**. That is what `sn_dt.DecisionTableAPI` is for.
+
+## Why the Decision API looked like it failed
+
+`getDecision()` often **did** return a row. The script never read it.
+
+1. **Input / result names need `u_`.** Decision Builder stores `Change State` as `u_change_state` and `Release State` as `u_release_state`. Keys like `change_state` and `release_state` do not match, so you get null / no `result_elements`.
+2. **`JSON.stringify(result)` is empty on purpose.** Answers are GlideElements. Use `result.result_elements.u_release_state.getValue()`.
+3. **Placeholder sys_id.** `YOUR_DECISION_TABLE_SYS_ID` is not a table. Copy the sys_id from the Decision Table URL (`/now/decisiondesigner/decisiontable/<sys_id>`).
+4. **No matching row and no default.** `getDecision` returns null. Add a default row, or also pass **Change Approval** so Authorize pending vs approved can be two rows.
+5. **Parent query.** Look up Releases by parent = Change sys_id **or** number.
+
+Washington DC+ : open the Decision Table → **Code snippet**. That paste already has the correct `u_` names.
+
+## Decision Table
+
+| Column | Type | Technical name |
+| --- | --- | --- |
+| Change State | Choice / String (Change `state` value, e.g. `-3`) | `u_change_state` |
+| Change Approval | Choice / String (`requested`, `approved`, …) | `u_change_approval` |
+| Release State | Choice on `rm_release.state` | `u_release_state` |
+
+Example rows:
+
+| u_change_state | u_change_approval | u_release_state |
+| --- | --- | --- |
+| `-5` or New | (any) | draft |
+| `-4` Assess | (any) | draft |
+| `-3` Authorize | not `approved` | awaiting_approval |
+| `-3` Authorize | `approved` | approved |
+| `-2` Scheduled | (any) | scheduled |
+| … | … | … |
+
+Empty parent is still handled by the Release before-rule (Draft). Do not expect the Decision Table to see those records.
+
+## Rules
 
 | Event | Table | When | Call |
 | --- | --- | --- | --- |
-| Change state or approval changes (including backwards) | Change Request | **after**, State or Approval changes | `syncFromChange(current)` |
-| Parent set, cleared, or Release inserted | Release | **before**, Parent changes / insert | `applyFromParent(current)` |
+| Change state or approval changes | Change Request | after | `syncFromChange(current)` |
+| Parent set, cleared, or insert | Release | before | `applyFromParent(current)` |
 
-The after-rule on Change finds Releases with `parent` = this Change, writes state, then `setWorkflow(false)` so the Release rule does not fire again on that update. The before-rule on Release sets `current.state` on the same save — empty parent → Draft, no extra `update()`.
-
-Do not put this on `task`. Both records extend task, and that rule would run on every incident, problem, and catalog item.
-
-Format: [`data/release-change-state-map.json`](../data/release-change-state-map.json).
-
-## Mapping
-
-| Release parent | Change state | Approval | Release state |
-| --- | --- | --- | --- |
-| empty | — | — | **Draft** |
-| Change number | New | (any) | Draft |
-| Change number | Assess | (any) | Draft |
-| Change number | Authorize or Approval | requested, not requested, rejected, or blank | Awaiting Approval |
-| Change number | Authorize or Approval | approved | Approved |
-| Change number | Scheduled | (any) | Scheduled |
-| Change number | Implement | (any) | Implementation |
-| Change number | Review | (any) | Review |
-| Change number | Closed | (any) | Closed Complete |
-| Change number | Canceled | (any) | Cancelled |
-
-Only `rm_release.parent` is used.
-
-## Cases this covers
-
-- No parent → Draft (Release before-rule)
-- Parent cleared → Draft
-- Parent set to a Change that cannot be found → Draft
-- Change state/approval changes → only Releases parented to that Change
-- New / Assess → Draft
-- Authorize or Approval, still waiting → Awaiting Approval
-- Authorize or Approval, approved → Approved
-- Scheduled / Implement / Review / Closed / Canceled
-- Numeric ServiceNow values (`-5`, `-3`, …) as well as labels
-- Forward and backward walks through Change states
-- Canceled mid-flow → Cancelled
-- Unknown Change state: leave the Release
-- Already on the mapped state: skip the write
-- Change-driven update does not re-enter the Release rule (`setWorkflow(false)`)
+Change-driven `update()` uses `setWorkflow(false)` so the Release rule does not run again.
 
 ## Deploy
 
-1. Script Include `ReleaseChangeState` from [`script_include_ReleaseChangeState.js`](script_include_ReleaseChangeState.js). Client callable: false. Set the `RELEASE` choice values to match your instance.
-2. Business Rule on **Change Request**, after insert/update, State or Approval changes. Script: [`sync_release_state_from_change.js`](sync_release_state_from_change.js).
-3. Business Rule on **Release**, before insert/update, Parent changes (run on insert). Script: [`br_release_from_parent.js`](br_release_from_parent.js).
+1. Create the Decision Table. Copy its sys_id into `DECISION_TABLE` in [`script_include_ReleaseChangeState.js`](script_include_ReleaseChangeState.js).
+2. Script Include `ReleaseChangeState`, client callable false.
+3. After BR on Change Request: State or Approval changes. [`sync_release_state_from_change.js`](sync_release_state_from_change.js).
+4. Before BR on Release: Parent changes / insert. [`br_release_from_parent.js`](br_release_from_parent.js).

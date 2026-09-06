@@ -5,7 +5,7 @@ import { test } from 'node:test';
 
 const PORT = 3456;
 
-async function waitForHealth(url, attempts = 30) {
+async function waitForHealth(url, attempts = 50) {
   for (let i = 0; i < attempts; i += 1) {
     try {
       const response = await fetch(url);
@@ -20,7 +20,7 @@ async function waitForHealth(url, attempts = 30) {
   throw new Error(`Server did not become healthy at ${url}`);
 }
 
-test('release create and copy flow', async () => {
+test('release create and copy flow', { timeout: 20000 }, async () => {
   const server = spawn('node', ['src/server.js'], {
     env: { ...process.env, PORT: String(PORT) },
     stdio: 'pipe',

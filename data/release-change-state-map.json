@@ -1,5 +1,5 @@
 {
-  "description": "Release state follows the Change in the Release parent field only. Re-read this table when that Change's state or approval changes, including when it moves backwards. No parent → Draft and stay there.",
+  "description": "Release state follows the Change in the Release parent field only, via a Decision Table. Re-read when that Change's state or approval changes, including when it moves backwards. No parent → Draft.",
   "tables": {
     "change": "change_request",
     "release": "rm_release"
