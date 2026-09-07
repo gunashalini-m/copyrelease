@@ -5,25 +5,39 @@
  * When: before
  * Insert: true
  * Update: true
- * Filter conditions: leave empty (logic is in the script).
+ * Filter conditions: leave empty (script decides)
  * Advanced: true
+ * Order: 1000  (do not steal work from existing before-BRs)
  *
- * Rules:
- *  - No parent Change  → Draft
- *  - Parent Change set/changed → Decision Table maps Change.state → Release.state
+ * Applies only when:
+ *  - insert, or
+ *  - the parent Change field changes
  *
- * Other Release field updates do not overwrite State unless parent changed.
+ * Does not run during Change-driven sync (ChangeReleaseStateSync.RUNNING).
+ * Does not abort, does not touch any field except state, and no-ops when
+ * the parent field is missing so a wrong table/property cannot break updates.
  */
 (function executeRule(current, previous /*null when async*/) {
-    var parentField = gs.getProperty('change.release.sync.parent_field', 'parent');
-    var parentChanged = current[parentField].changes();
-    var hasParent = !current[parentField].nil();
+    try {
+        if (typeof current === 'undefined' || !current) {
+            return;
+        }
+        if (ChangeReleaseStateSync.isRunning()) {
+            return;
+        }
 
-    // Inserts always apply. Updates apply when parent is added, removed, or swapped,
-    // or when the record still has no parent (keep Draft).
-    if (!current.isNewRecord() && !parentChanged && hasParent) {
-        return;
+        var parentField = gs.getProperty('change.release.sync.parent_field', 'parent');
+        if (!current.isValidField(parentField) || !current.isValidField('state')) {
+            return;
+        }
+
+        var parentChanged = current.isNewRecord() ? true : current[parentField].changes();
+        if (!current.isNewRecord() && !parentChanged) {
+            return;
+        }
+
+        new ChangeReleaseStateSync().applyToReleaseRecord(current);
+    } catch (e) {
+        gs.error('Set Release state from parent Change: ' + e);
     }
-
-    new ChangeReleaseStateSync().applyToReleaseRecord(current);
 })(current, previous);

@@ -5,8 +5,14 @@
  * Name: ChangeReleaseStateSync
  * API Name: ChangeReleaseStateSync
  *
- * Single place for Change → Release state mapping via Decision Table
+ * Maps Change Request state → Release state using Decision Table
  * "Release to Change state mapping".
+ *
+ * Safe for client, server, and client+server UI Actions:
+ *  - Never updates or aborts the Change record
+ *  - Never throws (UI Action current.update() / gsftSubmit must still succeed)
+ *  - Never setWorkflow(false) / never bypasses state models or existing BRs
+ *  - Recursion guard so our own BRs cannot re-enter
  *
  * System properties (optional overrides):
  *   change.release.sync.release_table   default: rm_release
@@ -15,6 +21,13 @@
  *   change.release.sync.decision_table  default: e914679bc34b4350dfef35a60501311b
  */
 var ChangeReleaseStateSync = Class.create();
+
+ChangeReleaseStateSync.RUNNING = false;
+
+ChangeReleaseStateSync.isRunning = function() {
+    return ChangeReleaseStateSync.RUNNING === true;
+};
+
 ChangeReleaseStateSync.prototype = {
     initialize: function() {
         this.releaseTable = gs.getProperty('change.release.sync.release_table', 'rm_release');
@@ -27,89 +40,120 @@ ChangeReleaseStateSync.prototype = {
     },
 
     /**
-     * Apply Draft vs mapped state onto a Release GlideRecord (does not update).
-     * Call from a before insert/update Business Rule on the Release table.
+     * Apply Draft vs mapped state onto a Release GlideRecord in memory (no update()).
+     * Used by the before BR on Release. No-ops while a Change-driven sync is running.
      * @param {GlideRecord} releaseGr
      * @returns {Boolean} true if state was changed on the in-memory record
      */
     applyToReleaseRecord: function(releaseGr) {
-        if (!releaseGr) {
+        try {
+            if (ChangeReleaseStateSync.isRunning()) {
+                return false;
+            }
+            if (!releaseGr || !releaseGr.isValidField('state')) {
+                return false;
+            }
+            if (!releaseGr.isValidField(this.parentField)) {
+                return false;
+            }
+
+            var parentId = String(releaseGr.getValue(this.parentField) || '');
+            if (!parentId) {
+                return this._setStateIfDifferent(releaseGr, this.draftState);
+            }
+
+            var changeGr = this._getChange(parentId);
+            if (!changeGr) {
+                gs.warn('ChangeReleaseStateSync: parent Change ' + parentId + ' not found; leaving Release state unchanged');
+                return false;
+            }
+
+            var mapped = this.getReleaseStateFromChangeState(changeGr.getValue('state'));
+            if (this._isBlank(mapped)) {
+                gs.warn(
+                    'ChangeReleaseStateSync: no Decision Table result for Change state ' +
+                        changeGr.getValue('state') +
+                        ' on ' +
+                        changeGr.getDisplayValue()
+                );
+                return false;
+            }
+
+            return this._setStateIfDifferent(releaseGr, mapped);
+        } catch (e) {
+            gs.error('ChangeReleaseStateSync.applyToReleaseRecord: ' + e);
             return false;
         }
-
-        var parentId = String(releaseGr.getValue(this.parentField) || '');
-        if (!parentId) {
-            return this._setStateIfDifferent(releaseGr, this.draftState);
-        }
-
-        var changeGr = this._getChange(parentId);
-        if (!changeGr) {
-            gs.warn('ChangeReleaseStateSync: parent Change ' + parentId + ' not found; leaving Release state unchanged');
-            return false;
-        }
-
-        var mapped = this.getReleaseStateFromChangeState(changeGr.getValue('state'));
-        if (mapped === null || mapped === undefined || mapped === '') {
-            gs.warn(
-                'ChangeReleaseStateSync: no Decision Table result for Change state ' +
-                    changeGr.getValue('state') +
-                    ' on ' +
-                    changeGr.getDisplayValue()
-            );
-            return false;
-        }
-
-        return this._setStateIfDifferent(releaseGr, mapped);
     },
 
     /**
      * Push the current Change state onto every child Release.
-     * Call from an after insert/update Business Rule on change_request
-     * when state changes (covers client, server, and mixed UI Actions).
+     * Call from an after insert/update BR on change_request when state changes.
+     * Does not modify the Change GlideRecord passed in.
      * @param {GlideRecord} changeGr
      * @returns {Number} count of Releases updated
      */
     syncReleasesFromChange: function(changeGr) {
-        if (!changeGr || !changeGr.isValidRecord()) {
+        if (ChangeReleaseStateSync.isRunning()) {
             return 0;
         }
 
-        var mapped = this.getReleaseStateFromChangeState(changeGr.getValue('state'));
-        if (mapped === null || mapped === undefined || mapped === '') {
-            gs.warn(
-                'ChangeReleaseStateSync: no Decision Table result for Change ' +
-                    changeGr.getDisplayValue() +
-                    ' state=' +
-                    changeGr.getValue('state')
-            );
-            return 0;
-        }
-
-        var releaseGr = new GlideRecord(this.releaseTable);
-        if (!releaseGr.isValid()) {
-            gs.error('ChangeReleaseStateSync: Release table is invalid: ' + this.releaseTable);
-            return 0;
-        }
-
-        releaseGr.addQuery(this.parentField, changeGr.getUniqueValue());
-        releaseGr.query();
-
-        var updated = 0;
-        while (releaseGr.next()) {
-            if (String(releaseGr.getValue('state')) === String(mapped)) {
-                continue;
+        ChangeReleaseStateSync.RUNNING = true;
+        try {
+            if (!changeGr || !changeGr.getUniqueValue()) {
+                return 0;
             }
 
-            // Avoid re-entry into Release Business Rules / state models in this same sync.
-            releaseGr.setWorkflow(false);
-            releaseGr.autoSysFields(true);
-            releaseGr.setValue('state', mapped);
-            if (releaseGr.update()) {
-                updated += 1;
+            var mapped = this.getReleaseStateFromChangeState(changeGr.getValue('state'));
+            if (this._isBlank(mapped)) {
+                gs.warn(
+                    'ChangeReleaseStateSync: no Decision Table result for Change ' +
+                        changeGr.getDisplayValue() +
+                        ' state=' +
+                        changeGr.getValue('state')
+                );
+                return 0;
             }
-        }
 
-        return updated;
+            var releaseGr = new GlideRecord(this.releaseTable);
+            if (!releaseGr.isValid() || !releaseGr.isValidField(this.parentField) || !releaseGr.isValidField('state')) {
+                gs.error('ChangeReleaseStateSync: Release table/fields invalid: ' + this.releaseTable);
+                return 0;
+            }
+
+            releaseGr.addQuery(this.parentField, changeGr.getUniqueValue());
+            releaseGr.query();
+
+            var updated = 0;
+            while (releaseGr.next()) {
+                if (String(releaseGr.getValue('state')) === String(mapped)) {
+                    continue;
+                }
+
+                try {
+                    // Keep workflow engines on so existing Release BRs, notifications,
+                    // and state models still run. RUNNING skips only *this* Script Include.
+                    releaseGr.setValue('state', mapped);
+                    if (releaseGr.update()) {
+                        updated += 1;
+                    }
+                } catch (recordErr) {
+                    gs.error(
+                        'ChangeReleaseStateSync: skipped Release ' +
+                            releaseGr.getUniqueValue() +
+                            ': ' +
+                            recordErr
+                    );
+                }
+            }
+
+            return updated;
+        } catch (e) {
+            gs.error('ChangeReleaseStateSync.syncReleasesFromChange: ' + e);
+            return 0;
+        } finally {
+            ChangeReleaseStateSync.RUNNING = false;
+        }
     },
 
     /**
@@ -119,7 +163,7 @@ ChangeReleaseStateSync.prototype = {
      * @returns {String|null}
      */
     getReleaseStateFromChangeState: function(changeStateValue) {
-        if (changeStateValue === null || changeStateValue === undefined || changeStateValue === '') {
+        if (this._isBlank(changeStateValue)) {
             return null;
         }
 
@@ -158,11 +202,18 @@ ChangeReleaseStateSync.prototype = {
     },
 
     _setStateIfDifferent: function(releaseGr, newState) {
+        if (this._isBlank(newState)) {
+            return false;
+        }
         if (String(releaseGr.getValue('state')) === String(newState)) {
             return false;
         }
         releaseGr.setValue('state', newState);
         return true;
+    },
+
+    _isBlank: function(value) {
+        return value === null || value === undefined || value === '';
     },
 
     type: 'ChangeReleaseStateSync'

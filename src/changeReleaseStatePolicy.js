@@ -15,14 +15,21 @@ export function resolveReleaseState({ hasParent, mappedReleaseState, draftState 
   return { state: mappedReleaseState, applied: true, reason: 'decision_table' };
 }
 
-export function shouldApplyOnReleaseUpdate({ isNewRecord, parentChanged, hasParent }) {
+export function shouldApplyOnReleaseUpdate({ isNewRecord, parentChanged, syncRunning }) {
+  if (syncRunning) {
+    return false;
+  }
   if (isNewRecord) {
     return true;
   }
-  if (parentChanged) {
-    return true;
+  return !!parentChanged;
+}
+
+export function shouldSyncFromChange({ stateChanged, actionAborted, syncRunning }) {
+  if (actionAborted || syncRunning) {
+    return false;
   }
-  return !hasParent;
+  return !!stateChanged;
 }
 
 /** Documented rows from Decision Table "Release to Change state mapping". */

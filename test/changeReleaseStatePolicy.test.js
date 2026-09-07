@@ -4,6 +4,7 @@ import {
   DOCUMENTED_MAPPINGS,
   resolveReleaseState,
   shouldApplyOnReleaseUpdate,
+  shouldSyncFromChange,
 } from '../src/changeReleaseStatePolicy.js';
 
 const DRAFT = 'draft';
@@ -40,7 +41,7 @@ test('unmapped change state does not overwrite release', () => {
   assert.equal(result.reason, 'no_mapping');
 });
 
-test('release BR runs on insert, parent change, or missing parent', () => {
+test('release BR runs on insert or parent change only', () => {
   assert.equal(
     shouldApplyOnReleaseUpdate({ isNewRecord: true, parentChanged: false, hasParent: true }),
     true
@@ -50,11 +51,38 @@ test('release BR runs on insert, parent change, or missing parent', () => {
     true
   );
   assert.equal(
-    shouldApplyOnReleaseUpdate({ isNewRecord: false, parentChanged: false, hasParent: false }),
+    shouldApplyOnReleaseUpdate({ isNewRecord: false, parentChanged: true, hasParent: false }),
     true
   );
   assert.equal(
+    shouldApplyOnReleaseUpdate({ isNewRecord: false, parentChanged: false, hasParent: false }),
+    false
+  );
+  assert.equal(
     shouldApplyOnReleaseUpdate({ isNewRecord: false, parentChanged: false, hasParent: true }),
+    false
+  );
+  assert.equal(
+    shouldApplyOnReleaseUpdate({ isNewRecord: true, parentChanged: true, syncRunning: true }),
+    false
+  );
+});
+
+test('change BR skips aborted actions and in-flight sync', () => {
+  assert.equal(
+    shouldSyncFromChange({ stateChanged: true, actionAborted: false, syncRunning: false }),
+    true
+  );
+  assert.equal(
+    shouldSyncFromChange({ stateChanged: false, actionAborted: false, syncRunning: false }),
+    false
+  );
+  assert.equal(
+    shouldSyncFromChange({ stateChanged: true, actionAborted: true, syncRunning: false }),
+    false
+  );
+  assert.equal(
+    shouldSyncFromChange({ stateChanged: true, actionAborted: false, syncRunning: true }),
     false
   );
 });
