@@ -2,9 +2,15 @@
 
 A browser-based simulator that asks you to write ServiceNow scripts for ITSM (including Integrations), autocompletes platform APIs as you type, and grades answers instantly. You can reveal a reference solution at any time.
 
-## Open in your browser (no install)
+## Download (do not use Raw on the .html file)
 
-Download [`servicenow-itsm-lab.html`](./servicenow-itsm-lab.html) and double-click it, or open it with File → Open in Chrome/Edge/Firefox. Everything (questions, grader, API autocomplete) is inside that one file. No server and no internet required.
+GitHub **Raw** shows HTML as source code. Use one of these instead:
+
+1. **Zip (recommended):** open [servicenow-itsm-lab.zip](https://github.com/gunashalini-m/copyrelease/blob/cursor/servicenow-itsm-simulator-3c42/servicenow-itsm-lab.zip) and click the download button, **or** use  
+   https://github.com/gunashalini-m/copyrelease/raw/cursor/servicenow-itsm-simulator-3c42/servicenow-itsm-lab.zip  
+   Unzip, then double-click `servicenow-itsm-lab.html`.
+
+2. **HTML file page:** [servicenow-itsm-lab.html](https://github.com/gunashalini-m/copyrelease/blob/cursor/servicenow-itsm-simulator-3c42/servicenow-itsm-lab.html) → click the **Download raw file** icon (down arrow). Do **not** click **Raw**.
 
 To rebuild the file after editing questions:
 
