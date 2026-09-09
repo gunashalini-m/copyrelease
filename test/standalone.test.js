@@ -14,6 +14,9 @@ test('standalone HTML file is downloadable and self-contained', () => {
   assert.match(html, /current.update\(\) in a Business Rule/);
   assert.match(html, /Incident Management/);
   assert.match(html, /Integrations/);
+  assert.match(html, /ACLs & Security/);
+  assert.match(html, /Full mixed exam/);
+  assert.match(html, /GlideRecordSecure/);
   assert.match(html, /GlideRecord/);
   assert.match(html, /RESTMessageV2/);
   assert.doesNotMatch(html, /type="module"/);

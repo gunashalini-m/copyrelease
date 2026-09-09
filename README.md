@@ -29,8 +29,9 @@ Open [http://localhost:3000](http://localhost:3000). Use **Download HTML file** 
 
 ## What you get
 
-- **10 ITSM topics**, each with **15 coding questions** and **15 multiple-choice theory questions**: Incident, Problem, Change, Request & Catalog, Knowledge, CMDB, Asset, SLA, Major Incident, and Integrations. Switch with **Code / Theory**.
-- **Monaco editor** with ServiceNow API completions (`GlideRecord`, `gs`, `g_form`, `RESTMessageV2`, Scripted REST, and more) plus common snippets.
+- **11 practice topics**, each with the full question bank (15–20 coding labs and 15–20 theory items): Incident, Problem, Change, Request & Catalog, Knowledge, CMDB, Asset, SLA, Major Incident, Integrations, and **ACLs & Security**. Extra items that used to be sliced off at 15 are included.
+- **Six timed-style exams** in the sidebar (mixed code + theory unless noted): full bank, ITSM process, developer coding-only, ACL & security, CMDB/Asset/Integrations, and theory-only.
+- **Monaco editor** with ServiceNow API completions (`GlideRecord`, `GlideRecordSecure`, `gs`, `g_form`, `RESTMessageV2`, Scripted REST, and more) plus common snippets.
 - **Fast client-side grading** (pattern checks on your script; typically well under 10 ms per attempt).
 - **Show solution** and **Copy solution into editor**.
 - Progress is stored in `localStorage` (passed questions stay marked on this browser).
@@ -45,4 +46,4 @@ Open [http://localhost:3000](http://localhost:3000). Use **Download HTML file** 
 npm test
 ```
 
-Tests assert each topic has 15+ questions, every official solution passes, starters do not already pass, and a full grade pass is fast.
+Tests assert each topic has 15+ questions, six exams resolve, every official solution passes, starters do not already pass, and a full grade pass is fast.

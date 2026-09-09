@@ -1,4 +1,4 @@
-/* global TOPICS, SNOW_API */
+/* global TOPICS, EXAMS, SNOW_API */
 (function () {
     const STORAGE_KEY = 'snow-itsm-lab-v2';
 
@@ -111,7 +111,20 @@
     return TOPICS.find(function (topic) { return topic.id === id; }) || TOPICS[0];
   }
 
+  function getExam(id) {
+    return EXAMS.find(function (exam) { return exam.id === id; }) || EXAMS[0];
+  }
+
+  function getQuestion(topicId, questionId, mode) {
+    var topic = getTopic(topicId);
+    var list = mode === 'theory' ? topic.theory : topic.questions;
+    return list.find(function (item) { return item.id === questionId; }) || list[0];
+  }
+
   var state = {
+    view: 'practice',
+    examId: EXAMS[0].id,
+    examIndex: 0,
     topicId: TOPICS[0].id,
     questionId: TOPICS[0].questions[0].id,
     mode: 'code',
@@ -120,6 +133,10 @@
     acIndex: 0,
     acItems: [],
   };
+
+  function currentExam() {
+    return getExam(state.examId);
+  }
 
   function currentTopic() {
     return getTopic(state.topicId);
@@ -131,13 +148,28 @@
   }
 
   function currentQuestion() {
-    var list = currentList();
-    return list.find(function (item) { return item.id === state.questionId; }) || list[0];
+    return getQuestion(state.topicId, state.questionId, state.mode);
+  }
+
+  function applyExamItem(index) {
+    var exam = currentExam();
+    var safe = Math.max(0, Math.min(index, exam.items.length - 1));
+    var item = exam.items[safe];
+    state.examIndex = safe;
+    state.topicId = item.topicId;
+    state.questionId = item.questionId;
+    state.mode = item.mode;
   }
 
   function passedCount(topic, mode) {
     var list = mode === 'theory' ? topic.theory : topic.questions;
     return list.filter(function (item) { return state.progress.results[item.id] && state.progress.results[item.id].passed; }).length;
+  }
+
+  function examPassedCount(exam) {
+    return exam.items.filter(function (item) {
+      return state.progress.results[item.questionId] && state.progress.results[item.questionId].passed;
+    }).length;
   }
 
   var textarea = document.getElementById('code');
@@ -279,15 +311,32 @@
 
   function renderSidebar() {
     var nav = document.getElementById('topic-nav');
-    nav.innerHTML = TOPICS.map(function (topic) {
-    var codeDone = passedCount(topic, 'code');
-      var theoryDone = passedCount(topic, 'theory');
-      var active = topic.id === state.topicId ? 'active' : '';
-      return '<button class="topic ' + active + '" data-topic="' + topic.id + '"><span class="topic-title">' + escapeHtml(topic.title) + '</span><span class="topic-count">' + codeDone + '/15 · ' + theoryDone + '/15</span></button>';
+    var examButtons = EXAMS.map(function (exam) {
+      var done = examPassedCount(exam);
+      var active = state.view === 'exam' && exam.id === state.examId ? 'active' : '';
+      return '<button class="topic exam ' + active + '" data-exam="' + exam.id + '"><span class="topic-title">' + escapeHtml(exam.title) + '</span><span class="topic-count">' + done + '/' + exam.items.length + '</span></button>';
     }).join('');
-    nav.querySelectorAll('.topic').forEach(function (btn) {
+    var topicButtons = TOPICS.map(function (topic) {
+      var codeDone = passedCount(topic, 'code');
+      var theoryDone = passedCount(topic, 'theory');
+      var active = state.view === 'practice' && topic.id === state.topicId ? 'active' : '';
+      return '<button class="topic ' + active + '" data-topic="' + topic.id + '"><span class="topic-title">' + escapeHtml(topic.title) + '</span><span class="topic-count">' + codeDone + '/' + topic.questions.length + ' · ' + theoryDone + '/' + topic.theory.length + '</span></button>';
+    }).join('');
+    nav.innerHTML = '<p class="nav-heading">Exams</p>' + examButtons + '<p class="nav-heading">Practice</p>' + topicButtons;
+    nav.querySelectorAll('[data-exam]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         persistCurrent();
+        state.view = 'exam';
+        state.examId = btn.getAttribute('data-exam');
+        applyExamItem(0);
+        state.solutionOpen = false;
+        render();
+      });
+    });
+    nav.querySelectorAll('[data-topic]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        persistCurrent();
+        state.view = 'practice';
         state.topicId = btn.getAttribute('data-topic');
         state.questionId = currentList()[0].id;
         state.solutionOpen = false;
@@ -297,8 +346,26 @@
   }
 
   function renderQuestionList() {
-    var topic = currentTopic();
     var listEl = document.getElementById('question-list');
+    if (state.view === 'exam') {
+      var exam = currentExam();
+      listEl.innerHTML = exam.items.map(function (item, index) {
+        var question = getQuestion(item.topicId, item.questionId, item.mode);
+        var result = state.progress.results[item.questionId];
+        var cls = index === state.examIndex ? 'active' : '';
+        if (result && result.passed) cls += ' passed';
+        return '<button class="q-item ' + cls + '" data-idx="' + index + '"><span class="q-idx">' + String(index + 1).padStart(2, '0') + '</span><span class="q-name">' + escapeHtml(question.title) + '</span><span class="q-kind">' + item.mode + '</span></button>';
+      }).join('');
+      listEl.querySelectorAll('.q-item').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          persistCurrent();
+          applyExamItem(Number(btn.getAttribute('data-idx')));
+          state.solutionOpen = false;
+          render();
+        });
+      });
+      return;
+    }
     listEl.innerHTML = currentList().map(function (item, index) {
       var result = state.progress.results[item.id];
       var cls = item.id === state.questionId ? 'active' : '';
@@ -365,16 +432,36 @@
     box.innerHTML = '<div class="grade-head">' + (result.passed ? 'Passed' : 'Not yet') + ' · ' + result.durationMs.toFixed(1) + ' ms</div><ul>' + rows + '</ul>';
   }
 
+  function goNext() {
+    persistCurrent();
+    state.solutionOpen = false;
+    if (state.view === 'exam') {
+      var exam = currentExam();
+      if (state.examIndex < exam.items.length - 1) applyExamItem(state.examIndex + 1);
+    } else {
+      var list = currentList();
+      var idx = -1;
+      for (var i = 0; i < list.length; i += 1) {
+        if (list[i].id === state.questionId) { idx = i; break; }
+      }
+      if (idx >= 0 && idx < list.length - 1) state.questionId = list[idx + 1].id;
+    }
+    render();
+  }
+
   function render() {
     var question = currentQuestion();
     var topic = currentTopic();
     var isTheory = state.mode === 'theory';
     renderSidebar();
     renderQuestionList();
+    var toggle = document.getElementById('mode-toggle');
+    if (toggle) toggle.hidden = state.view === 'exam';
     document.querySelectorAll('#mode-toggle [data-mode]').forEach(function (btn) {
       btn.classList.toggle('active', btn.getAttribute('data-mode') === state.mode);
     });
-    document.getElementById('crumb').textContent = topic.title + ' · ' + (isTheory ? 'theory' : String(question.kind || 'server').replace(/_/g, ' '));
+    var exam = state.view === 'exam' ? currentExam() : null;
+    document.getElementById('crumb').textContent = (exam ? exam.title + ' · ' : '') + topic.title + ' · ' + (isTheory ? 'theory' : String(question.kind || 'server').replace(/_/g, ' '));
     document.getElementById('q-title').textContent = question.title;
     document.getElementById('q-prompt').textContent = question.prompt;
     var hint = document.getElementById('hint');
@@ -385,16 +472,34 @@
     document.getElementById('reveal-btn').textContent = state.solutionOpen ? 'Hide solution' : 'Show solution';
     document.getElementById('apply-btn').textContent = isTheory ? 'Select correct answer' : 'Copy solution into editor';
     document.getElementById('editor').hidden = isTheory;
+    var nextBtn = document.getElementById('next-btn');
+    if (nextBtn) {
+      if (state.view === 'exam') {
+        nextBtn.disabled = state.examIndex >= currentExam().items.length - 1;
+      } else {
+        var plist = currentList();
+        var pidx = -1;
+        for (var pi = 0; pi < plist.length; pi += 1) {
+          if (plist[pi].id === state.questionId) { pidx = pi; break; }
+        }
+        nextBtn.disabled = pidx < 0 || pidx >= plist.length - 1;
+      }
+    }
     renderTheory();
     if (!isTheory) {
       textarea.value = state.progress.answers[question.id] != null ? state.progress.answers[question.id] : question.starter;
     }
     var last = state.progress.results[question.id];
     renderGrade(last && last.grade ? last.grade : null);
-    document.getElementById('blurb').textContent = topic.blurb;
-    document.getElementById('progress-label').textContent = isTheory
-      ? passedCount(topic, 'theory') + ' of 15 theory passed'
-      : passedCount(topic, 'code') + ' of 15 code passed';
+    if (exam) {
+      document.getElementById('blurb').textContent = exam.blurb;
+      document.getElementById('progress-label').textContent = examPassedCount(exam) + ' of ' + exam.items.length + ' exam items passed';
+    } else {
+      document.getElementById('blurb').textContent = topic.blurb;
+      document.getElementById('progress-label').textContent = isTheory
+        ? passedCount(topic, 'theory') + ' of ' + topic.theory.length + ' theory passed'
+        : passedCount(topic, 'code') + ' of ' + topic.questions.length + ' code passed';
+    }
   }
 
   function runGrade() {
@@ -435,6 +540,8 @@
     saveProgress(state.progress);
     render();
   });
+  var nextEl = document.getElementById('next-btn');
+  if (nextEl) nextEl.addEventListener('click', goNext);
   document.querySelectorAll('#mode-toggle [data-mode]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       persistCurrent();

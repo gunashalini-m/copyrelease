@@ -71,6 +71,22 @@ body {
   flex-direction: column;
   padding: 8px;
   gap: 6px;
+  max-height: calc(100vh - 140px);
+  overflow: auto;
+}
+
+.nav-heading {
+  margin: 10px 8px 2px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.q-kind {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--accent-2);
 }
 
 .topic,

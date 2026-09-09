@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TOPICS } from '../src/lib/questions/index.js';
+import { TOPICS, EXAMS } from '../src/lib/questions/index.js';
 import {
   SNOW_CLASSES,
   SNOW_GLOBALS,
@@ -127,6 +127,7 @@ const html = `<!DOCTYPE html>
           <h1 id="q-title"></h1>
         </div>
         <div class="actions">
+          <button id="next-btn" class="btn ghost" type="button">Next</button>
           <button id="reset-btn" class="btn ghost" type="button">Reset</button>
           <button id="reveal-btn" class="btn ghost" type="button">Show solution</button>
           <button id="apply-btn" class="btn ghost" type="button">Copy solution into editor</button>
@@ -149,6 +150,7 @@ const html = `<!DOCTYPE html>
   </div>
   <script>
     const TOPICS = ${serialize(TOPICS)};
+    const EXAMS = ${serialize(EXAMS)};
     const SNOW_API = {
       classes: ${serialize(SNOW_CLASSES)},
       globals: ${serialize(SNOW_GLOBALS)},

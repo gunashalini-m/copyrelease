@@ -1,10 +1,13 @@
-import { TOPICS, getTopic, activeQuestions } from '/lib/questions/index.js';
+import { TOPICS, EXAMS, getTopic, getExam, getQuestion, activeQuestions } from '/lib/questions/index.js';
 import { grade, gradeTheory } from '/lib/grader.js';
 import { createEditor } from '/js/editor.js';
 
 const STORAGE_KEY = 'snow-itsm-lab-v2';
 
 const state = {
+  view: 'practice',
+  examId: EXAMS[0].id,
+  examIndex: 0,
   topicId: TOPICS[0].id,
   questionId: TOPICS[0].questions[0].id,
   mode: 'code',
@@ -25,21 +28,43 @@ function saveProgress() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.progress));
 }
 
+function currentExam() {
+  return getExam(state.examId);
+}
+
 function currentTopic() {
   return getTopic(state.topicId);
 }
 
+function currentQuestion() {
+  return getQuestion(state.topicId, state.questionId, state.mode);
+}
+
 function currentList() {
+  if (state.view === 'exam') {
+    return currentExam().items.map((item) => {
+      const question = getQuestion(item.topicId, item.questionId, item.mode);
+      return { ...question, examMode: item.mode, examTopicId: item.topicId };
+    });
+  }
   return activeQuestions(currentTopic(), state.mode);
 }
 
-function currentQuestion() {
-  const list = currentList();
-  return list.find((item) => item.id === state.questionId) || list[0];
+function applyExamItem(index) {
+  const exam = currentExam();
+  const item = exam.items[Math.max(0, Math.min(index, exam.items.length - 1))];
+  state.examIndex = exam.items.indexOf(item);
+  state.topicId = item.topicId;
+  state.questionId = item.questionId;
+  state.mode = item.mode;
 }
 
 function passedCount(topic, mode) {
   return activeQuestions(topic, mode).filter((item) => state.progress.results[item.id]?.passed).length;
+}
+
+function examPassedCount(exam) {
+  return exam.items.filter((item) => state.progress.results[item.questionId]?.passed).length;
 }
 
 function persistCode() {
@@ -52,6 +77,7 @@ function persistCode() {
 
 function persistTheory() {
   const question = currentQuestion();
+  if (!question.options) return;
   if (question.multi) {
     const selected = [...document.querySelectorAll('#theory-box input:checked')].map((el) => el.value);
     state.progress.answers[question.id] = selected;
@@ -62,21 +88,47 @@ function persistTheory() {
   saveProgress();
 }
 
+function persistCurrent() {
+  if (state.mode === 'code') persistCode();
+  else persistTheory();
+}
+
 function renderSidebar() {
   const nav = document.getElementById('topic-nav');
-  nav.innerHTML = TOPICS.map((topic) => {
-    const codeDone = passedCount(topic, 'code');
-    const theoryDone = passedCount(topic, 'theory');
-    const active = topic.id === state.topicId ? 'active' : '';
-    return `<button class="topic ${active}" data-topic="${topic.id}">
-      <span class="topic-title">${topic.title}</span>
-      <span class="topic-count">${codeDone}/15 · ${theoryDone}/15</span>
+  const examButtons = EXAMS.map((exam) => {
+    const done = examPassedCount(exam);
+    const active = state.view === 'exam' && exam.id === state.examId ? 'active' : '';
+    return `<button class="topic exam ${active}" data-exam="${exam.id}">
+      <span class="topic-title">${exam.title}</span>
+      <span class="topic-count">${done}/${exam.items.length}</span>
     </button>`;
   }).join('');
+  const topicButtons = TOPICS.map((topic) => {
+    const codeDone = passedCount(topic, 'code');
+    const theoryDone = passedCount(topic, 'theory');
+    const active = state.view === 'practice' && topic.id === state.topicId ? 'active' : '';
+    return `<button class="topic ${active}" data-topic="${topic.id}">
+      <span class="topic-title">${topic.title}</span>
+      <span class="topic-count">${codeDone}/${topic.questions.length} · ${theoryDone}/${topic.theory.length}</span>
+    </button>`;
+  }).join('');
+  nav.innerHTML = `<p class="nav-heading">Exams</p>${examButtons}<p class="nav-heading">Practice</p>${topicButtons}`;
 
-  nav.querySelectorAll('.topic').forEach((btn) => {
+  nav.querySelectorAll('[data-exam]').forEach((btn) => {
     btn.addEventListener('click', () => {
       persistCurrent();
+      state.view = 'exam';
+      state.examId = btn.dataset.exam;
+      state.examIndex = 0;
+      applyExamItem(0);
+      state.solutionOpen = false;
+      render();
+    });
+  });
+  nav.querySelectorAll('[data-topic]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      persistCurrent();
+      state.view = 'practice';
       state.topicId = btn.dataset.topic;
       state.questionId = activeQuestions(getTopic(state.topicId), state.mode)[0].id;
       state.solutionOpen = false;
@@ -85,19 +137,46 @@ function renderSidebar() {
   });
 }
 
-function persistCurrent() {
-  if (state.mode === 'code') persistCode();
-  else persistTheory();
-}
-
 function renderModeToggle() {
-  document.querySelectorAll('#mode-toggle [data-mode]').forEach((btn) => {
+  const toggle = document.getElementById('mode-toggle');
+  toggle.hidden = state.view === 'exam';
+  toggle.querySelectorAll('[data-mode]').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.mode === state.mode);
   });
 }
 
 function renderQuestionList() {
   const list = document.getElementById('question-list');
+  if (state.view === 'exam') {
+    const exam = currentExam();
+    list.innerHTML = exam.items
+      .map((item, index) => {
+        const question = getQuestion(item.topicId, item.questionId, item.mode);
+        const result = state.progress.results[item.questionId];
+        const cls = [
+          index === state.examIndex ? 'active' : '',
+          result?.passed ? 'passed' : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
+        return `<button class="q-item ${cls}" data-idx="${index}">
+          <span class="q-idx">${String(index + 1).padStart(2, '0')}</span>
+          <span class="q-name">${question.title}</span>
+          <span class="q-kind">${item.mode}</span>
+        </button>`;
+      })
+      .join('');
+    list.querySelectorAll('.q-item').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        persistCurrent();
+        applyExamItem(Number(btn.dataset.idx));
+        state.solutionOpen = false;
+        render();
+      });
+    });
+    return;
+  }
+
   list.innerHTML = currentList()
     .map((item, index) => {
       const result = state.progress.results[item.id];
@@ -138,7 +217,10 @@ function renderPrompt() {
   const question = currentQuestion();
   const topic = currentTopic();
   const isTheory = state.mode === 'theory';
-  document.getElementById('crumb').textContent = `${topic.title} · ${isTheory ? 'theory' : question.kind.replaceAll('_', ' ')}`;
+  const exam = state.view === 'exam' ? currentExam() : null;
+  document.getElementById('crumb').textContent = exam
+    ? `${exam.title} · ${topic.title} · ${isTheory ? 'theory' : question.kind.replaceAll('_', ' ')}`
+    : `${topic.title} · ${isTheory ? 'theory' : question.kind.replaceAll('_', ' ')}`;
   document.getElementById('q-title').textContent = question.title;
   document.getElementById('q-prompt').textContent = question.prompt;
   document.getElementById('hint').textContent = question.hint || '';
@@ -149,6 +231,16 @@ function renderPrompt() {
   document.getElementById('apply-btn').textContent = isTheory ? 'Select correct answer' : 'Copy solution into editor';
   document.getElementById('editor').hidden = isTheory;
   document.getElementById('theory-box').hidden = !isTheory;
+  const nextBtn = document.getElementById('next-btn');
+  if (nextBtn) {
+    if (state.view === 'exam') {
+      nextBtn.disabled = state.examIndex >= currentExam().items.length - 1;
+    } else {
+      const list = currentList();
+      const idx = list.findIndex((item) => item.id === state.questionId);
+      nextBtn.disabled = idx < 0 || idx >= list.length - 1;
+    }
+  }
 }
 
 function renderTheory() {
@@ -205,6 +297,24 @@ function codeForQuestion(question) {
   return state.progress.answers[question.id] ?? question.starter;
 }
 
+function goNext() {
+  persistCurrent();
+  state.solutionOpen = false;
+  if (state.view === 'exam') {
+    const exam = currentExam();
+    if (state.examIndex < exam.items.length - 1) {
+      applyExamItem(state.examIndex + 1);
+    }
+  } else {
+    const list = currentList();
+    const idx = list.findIndex((item) => item.id === state.questionId);
+    if (idx >= 0 && idx < list.length - 1) {
+      state.questionId = list[idx + 1].id;
+    }
+  }
+  render();
+}
+
 async function render() {
   renderSidebar();
   renderModeToggle();
@@ -217,12 +327,19 @@ async function render() {
   }
   const last = state.progress.results[question.id];
   renderGrade(last?.grade || null);
-  document.getElementById('blurb').textContent = currentTopic().blurb;
-  const topic = currentTopic();
-  document.getElementById('progress-label').textContent =
-    state.mode === 'theory'
-      ? `${passedCount(topic, 'theory')} of 15 theory passed`
-      : `${passedCount(topic, 'code')} of 15 code passed`;
+  if (state.view === 'exam') {
+    const exam = currentExam();
+    document.getElementById('blurb').textContent = exam.blurb;
+    document.getElementById('progress-label').textContent =
+      `${examPassedCount(exam)} of ${exam.items.length} exam items passed`;
+  } else {
+    const topic = currentTopic();
+    document.getElementById('blurb').textContent = topic.blurb;
+    document.getElementById('progress-label').textContent =
+      state.mode === 'theory'
+        ? `${passedCount(topic, 'theory')} of ${topic.theory.length} theory passed`
+        : `${passedCount(topic, 'code')} of ${topic.questions.length} code passed`;
+  }
 }
 
 function runGrade() {
@@ -284,6 +401,7 @@ function bind() {
   document.getElementById('reveal-btn').addEventListener('click', revealSolution);
   document.getElementById('apply-btn').addEventListener('click', applySolution);
   document.getElementById('reset-btn').addEventListener('click', resetCode);
+  document.getElementById('next-btn')?.addEventListener('click', goNext);
   document.querySelectorAll('#mode-toggle [data-mode]').forEach((btn) => {
     btn.addEventListener('click', () => {
       persistCurrent();
