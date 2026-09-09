@@ -23,7 +23,7 @@ Open [http://localhost:3000](http://localhost:3000). Use **Download HTML file** 
 
 ## What you get
 
-- **10 ITSM topics**, each with **at least 15 coding questions**: Incident, Problem, Change, Request & Catalog, Knowledge, CMDB, Asset, SLA, Major Incident, and Integrations.
+- **10 ITSM topics**, each with **15 coding questions** and **15 multiple-choice theory questions**: Incident, Problem, Change, Request & Catalog, Knowledge, CMDB, Asset, SLA, Major Incident, and Integrations. Switch with **Code / Theory**.
 - **Monaco editor** with ServiceNow API completions (`GlideRecord`, `gs`, `g_form`, `RESTMessageV2`, Scripted REST, and more) plus common snippets.
 - **Fast client-side grading** (pattern checks on your script; typically well under 10 ms per attempt).
 - **Show solution** and **Copy solution into editor**.

@@ -1,3 +1,27 @@
+const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
+
+export function mcq(id, title, prompt, choices, correctIndex, explanation, difficulty = 'intermediate') {
+  const options = choices.map((text, index) => ({
+    id: LETTERS[index],
+    text,
+  }));
+  const answer = Array.isArray(correctIndex)
+    ? correctIndex.map((index) => LETTERS[index])
+    : LETTERS[correctIndex];
+  return {
+    id,
+    title,
+    difficulty,
+    format: 'theory',
+    kind: 'theory',
+    prompt,
+    options,
+    answer,
+    explanation,
+    multi: Array.isArray(correctIndex),
+  };
+}
+
 export function question({
   id,
   title,

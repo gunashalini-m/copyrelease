@@ -1,12 +1,13 @@
-import { TOPICS, getTopic } from '/lib/questions/index.js';
-import { grade } from '/lib/grader.js';
+import { TOPICS, getTopic, activeQuestions } from '/lib/questions/index.js';
+import { grade, gradeTheory } from '/lib/grader.js';
 import { createEditor } from '/js/editor.js';
 
-const STORAGE_KEY = 'snow-itsm-lab-v1';
+const STORAGE_KEY = 'snow-itsm-lab-v2';
 
 const state = {
   topicId: TOPICS[0].id,
   questionId: TOPICS[0].questions[0].id,
+  mode: 'code',
   editor: null,
   progress: loadProgress(),
   solutionOpen: false,
@@ -28,50 +29,81 @@ function currentTopic() {
   return getTopic(state.topicId);
 }
 
+function currentList() {
+  return activeQuestions(currentTopic(), state.mode);
+}
+
 function currentQuestion() {
-  const topic = currentTopic();
-  return topic.questions.find((item) => item.id === state.questionId) || topic.questions[0];
+  const list = currentList();
+  return list.find((item) => item.id === state.questionId) || list[0];
 }
 
-function questionKey(question = currentQuestion()) {
-  return question.id;
+function passedCount(topic, mode) {
+  return activeQuestions(topic, mode).filter((item) => state.progress.results[item.id]?.passed).length;
 }
 
-function passedCount(topic) {
-  return topic.questions.filter((item) => state.progress.results[item.id]?.passed).length;
+function persistCode() {
+  if (state.mode !== 'code' || !state.editor) {
+    return;
+  }
+  state.progress.answers[currentQuestion().id] = state.editor.getValue();
+  saveProgress();
+}
+
+function persistTheory() {
+  const question = currentQuestion();
+  if (question.multi) {
+    const selected = [...document.querySelectorAll('#theory-box input:checked')].map((el) => el.value);
+    state.progress.answers[question.id] = selected;
+  } else {
+    const selected = document.querySelector('#theory-box input:checked');
+    state.progress.answers[question.id] = selected ? selected.value : '';
+  }
+  saveProgress();
 }
 
 function renderSidebar() {
   const nav = document.getElementById('topic-nav');
   nav.innerHTML = TOPICS.map((topic) => {
-    const done = passedCount(topic);
+    const codeDone = passedCount(topic, 'code');
+    const theoryDone = passedCount(topic, 'theory');
     const active = topic.id === state.topicId ? 'active' : '';
     return `<button class="topic ${active}" data-topic="${topic.id}">
       <span class="topic-title">${topic.title}</span>
-      <span class="topic-count">${done}/${topic.questions.length}</span>
+      <span class="topic-count">${codeDone}/15 · ${theoryDone}/15</span>
     </button>`;
   }).join('');
 
   nav.querySelectorAll('.topic').forEach((btn) => {
     btn.addEventListener('click', () => {
+      persistCurrent();
       state.topicId = btn.dataset.topic;
-      state.questionId = getTopic(state.topicId).questions[0].id;
+      state.questionId = activeQuestions(getTopic(state.topicId), state.mode)[0].id;
       state.solutionOpen = false;
       render();
     });
   });
 }
 
+function persistCurrent() {
+  if (state.mode === 'code') persistCode();
+  else persistTheory();
+}
+
+function renderModeToggle() {
+  document.querySelectorAll('#mode-toggle [data-mode]').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.mode === state.mode);
+  });
+}
+
 function renderQuestionList() {
-  const topic = currentTopic();
   const list = document.getElementById('question-list');
-  list.innerHTML = topic.questions
+  list.innerHTML = currentList()
     .map((item, index) => {
       const result = state.progress.results[item.id];
       const cls = [
         item.id === state.questionId ? 'active' : '',
         result?.passed ? 'passed' : '',
-        result?.revealed && !result?.passed ? 'revealed' : '',
       ]
         .filter(Boolean)
         .join(' ');
@@ -85,7 +117,7 @@ function renderQuestionList() {
 
   list.querySelectorAll('.q-item').forEach((btn) => {
     btn.addEventListener('click', () => {
-      persistCode();
+      persistCurrent();
       state.questionId = btn.dataset.qid;
       state.solutionOpen = false;
       render();
@@ -93,31 +125,62 @@ function renderQuestionList() {
   });
 }
 
-function persistCode() {
-  if (!state.editor) {
-    return;
-  }
-  state.progress.answers[questionKey()] = state.editor.getValue();
-  saveProgress();
+function theorySolutionText(question) {
+  const ids = Array.isArray(question.answer) ? question.answer : [question.answer];
+  const labels = ids.map((id) => {
+    const option = question.options.find((item) => item.id === id);
+    return option ? `${id.toUpperCase()}. ${option.text}` : id;
+  });
+  return `${labels.join('\n')}\n\n${question.explanation || ''}`;
 }
 
 function renderPrompt() {
   const question = currentQuestion();
   const topic = currentTopic();
-  document.getElementById('crumb').textContent = `${topic.title} · ${question.kind.replaceAll('_', ' ')}`;
+  const isTheory = state.mode === 'theory';
+  document.getElementById('crumb').textContent = `${topic.title} · ${isTheory ? 'theory' : question.kind.replaceAll('_', ' ')}`;
   document.getElementById('q-title').textContent = question.title;
   document.getElementById('q-prompt').textContent = question.prompt;
   document.getElementById('hint').textContent = question.hint || '';
   document.getElementById('hint').hidden = !question.hint;
   document.getElementById('solution-pane').hidden = !state.solutionOpen;
-  document.getElementById('solution-code').textContent = question.solution;
+  document.getElementById('solution-code').textContent = isTheory ? theorySolutionText(question) : question.solution;
   document.getElementById('reveal-btn').textContent = state.solutionOpen ? 'Hide solution' : 'Show solution';
+  document.getElementById('apply-btn').textContent = isTheory ? 'Select correct answer' : 'Copy solution into editor';
+  document.getElementById('editor').hidden = isTheory;
+  document.getElementById('theory-box').hidden = !isTheory;
+}
+
+function renderTheory() {
+  const question = currentQuestion();
+  const box = document.getElementById('theory-box');
+  if (state.mode !== 'theory') {
+    box.innerHTML = '';
+    return;
+  }
+  const saved = state.progress.answers[question.id];
+  const selected = new Set(Array.isArray(saved) ? saved : saved ? [saved] : []);
+  const inputType = question.multi ? 'checkbox' : 'radio';
+  box.innerHTML = question.options
+    .map(
+      (option) => `<label class="theory-option ${selected.has(option.id) ? 'selected' : ''}">
+        <input type="${inputType}" name="theory-${question.id}" value="${option.id}" ${selected.has(option.id) ? 'checked' : ''} />
+        <span><strong>${option.id.toUpperCase()}.</strong> ${option.text}</span>
+      </label>`,
+    )
+    .join('');
+  box.querySelectorAll('input').forEach((input) => {
+    input.addEventListener('change', () => {
+      persistTheory();
+      renderTheory();
+    });
+  });
 }
 
 function renderGrade(result) {
   const box = document.getElementById('grade-results');
   if (!result) {
-    box.innerHTML = '<p class="muted">Press Grade (Ctrl/Cmd+Enter) for instant feedback.</p>';
+    box.innerHTML = `<p class="muted">${state.mode === 'theory' ? 'Pick an answer, then Grade.' : 'Press Grade (Ctrl/Cmd+Enter) for instant feedback.'}</p>`;
     box.className = 'grade-box';
     return;
   }
@@ -144,24 +207,34 @@ function codeForQuestion(question) {
 
 async function render() {
   renderSidebar();
+  renderModeToggle();
   renderQuestionList();
   renderPrompt();
+  renderTheory();
   const question = currentQuestion();
-  const stored = codeForQuestion(question);
-  if (state.editor) {
-    state.editor.setValue(stored);
+  if (state.mode === 'code' && state.editor) {
+    state.editor.setValue(codeForQuestion(question));
   }
   const last = state.progress.results[question.id];
   renderGrade(last?.grade || null);
   document.getElementById('blurb').textContent = currentTopic().blurb;
-  document.getElementById('progress-label').textContent = `${passedCount(currentTopic())} of ${currentTopic().questions.length} passed in this topic`;
+  const topic = currentTopic();
+  document.getElementById('progress-label').textContent =
+    state.mode === 'theory'
+      ? `${passedCount(topic, 'theory')} of 15 theory passed`
+      : `${passedCount(topic, 'code')} of 15 code passed`;
 }
 
 function runGrade() {
-  persistCode();
+  persistCurrent();
   const question = currentQuestion();
-  const code = state.editor ? state.editor.getValue() : codeForQuestion(question);
-  const result = grade(code, question.checks);
+  let result;
+  if (state.mode === 'theory') {
+    result = gradeTheory(state.progress.answers[question.id], question);
+  } else {
+    const code = state.editor ? state.editor.getValue() : codeForQuestion(question);
+    result = grade(code, question.checks);
+  }
   const prev = state.progress.results[question.id] || {};
   state.progress.results[question.id] = {
     ...prev,
@@ -185,6 +258,12 @@ function revealSolution() {
 
 function applySolution() {
   const question = currentQuestion();
+  if (state.mode === 'theory') {
+    state.progress.answers[question.id] = question.multi ? question.answer : question.answer;
+    saveProgress();
+    renderTheory();
+    return;
+  }
   state.editor?.setValue(question.solution);
   persistCode();
 }
@@ -192,8 +271,12 @@ function applySolution() {
 function resetCode() {
   const question = currentQuestion();
   delete state.progress.answers[question.id];
-  state.editor?.setValue(question.starter);
   saveProgress();
+  if (state.mode === 'code') {
+    state.editor?.setValue(question.starter);
+  } else {
+    renderTheory();
+  }
 }
 
 function bind() {
@@ -201,6 +284,15 @@ function bind() {
   document.getElementById('reveal-btn').addEventListener('click', revealSolution);
   document.getElementById('apply-btn').addEventListener('click', applySolution);
   document.getElementById('reset-btn').addEventListener('click', resetCode);
+  document.querySelectorAll('#mode-toggle [data-mode]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      persistCurrent();
+      state.mode = btn.dataset.mode;
+      state.questionId = currentList()[0].id;
+      state.solutionOpen = false;
+      render();
+    });
+  });
 }
 
 async function main() {
@@ -210,10 +302,11 @@ async function main() {
   try {
     state.editor = await createEditor(host, codeForQuestion(question), () => persistCode());
   } catch (error) {
-    host.innerHTML = `<textarea id="fallback" class="fallback">${codeForQuestion(question)}</textarea>`;
+    host.innerHTML = `<textarea id="fallback" class="fallback"></textarea>`;
     const area = document.getElementById('fallback');
+    area.value = codeForQuestion(question);
     area.addEventListener('input', () => {
-      state.progress.answers[questionKey()] = area.value;
+      state.progress.answers[currentQuestion().id] = area.value;
       saveProgress();
     });
     state.editor = {

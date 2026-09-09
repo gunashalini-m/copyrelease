@@ -1,0 +1,19 @@
+import { mcq } from './helpers.js';
+
+export const theory = [
+  mcq('int-t01', 'RESTMessageV2', 'Outbound REST from a server script uses:', ['g_form.getReference', 'sn_ws.RESTMessageV2', 'GlideList2', 'sc_cat_item'], 1, 'RESTMessageV2 is the platform outbound REST API.', 'easy'),
+  mcq('int-t02', 'execute vs executeAsync', 'executeAsync() is used to:', ['Run the call on the client', 'Send the request asynchronously (often via ECC/MID) instead of blocking', 'Parse JSON', 'Skip HTTPS'], 1, 'Async for long or MID-bound calls; waitForResponse if you need the result.', 'intermediate'),
+  mcq('int-t03', 'setRequestHeader', 'Content-Type: application/json should be set when:', ['Doing a SOAP call only', 'The body is JSON', 'Using GlideAggregate', 'Querying ecc_queue'], 1, 'Headers describe the payload.', 'easy'),
+  mcq('int-t04', 'Named messages', 'new sn_ws.RESTMessageV2("PagerDuty", "postEvent") uses:', ['A Scripted REST API resource', 'A saved REST Message record and HTTP method function', 'A catalog item', 'A knowledge article'], 1, 'Reuse Connection & Credential + message records.', 'easy'),
+  mcq('int-t05', 'setStringParameter', 'setStringParameter substitutes:', ['GlideRecord encoded queries', '${variable} placeholders in the REST message', 'ACL roles', 'SLA pause conditions'], 1, 'Template parameters on the message.', 'easy'),
+  mcq('int-t06', 'NoEscape', 'setStringParameterNoEscape is preferred when the value is:', ['A simple name', 'Already JSON/XML that must not be XML-escaped', 'A sys_id of a user', 'Always passwords'], 1, 'Avoid double-escaping JSON fragments.', 'intermediate'),
+  mcq('int-t07', 'MID Server', 'setMIDServer is required when:', ['Calling a public internet API from the instance always', 'The endpoint is only reachable from inside the customer network', 'Using g_form', 'Publishing knowledge'], 1, 'MID bridges to internal endpoints.', 'intermediate'),
+  mcq('int-t08', 'Scripted REST', 'Inbound Scripted REST APIs receive:', ['g_user only', 'request (RESTAPIRequest) and response (RESTAPIResponse)', 'current and previous only', 'A browser DOM'], 1, 'pathParams, queryParams, body, headers.', 'easy'),
+  mcq('int-t09', 'HTTP 201', 'setStatus(201) is appropriate after:', ['A failed auth check', 'Successfully creating a record', 'A validation error', 'A GET of a missing incident'], 1, '201 Created.', 'easy'),
+  mcq('int-t10', '401', '401 Unauthorized on inbound REST usually means:', ['The incident table is empty', 'Missing/invalid credentials or API key', 'GlideAggregate COUNT is 0', 'The change is standard'], 1, 'Authenticate first.', 'easy'),
+  mcq('int-t11', 'JSON.parse', 'JSON.parse on a REST body should happen:', ['Before checking HTTP status always', 'After confirming a successful status to avoid parsing error HTML', 'Only in client scripts', 'Instead of getBody()'], 1, 'Do not parse error pages as JSON blindly.', 'intermediate'),
+  mcq('int-t12', 'SOAPMessageV2', 'Outbound SOAP uses:', ['sn_ws.SOAPMessageV2', 'g_form.showFieldMsg', 'GlideDuration', 'kb_feedback'], 0, 'Parallel to RESTMessageV2 for SOAP.', 'easy'),
+  mcq('int-t13', 'Import set', 'Staging data in u_incident_import before target incident is:', ['IRE for CMDB only', 'The import set / transform map pattern', 'A client onSubmit', 'An SLA pause'], 1, 'Landing table then transform.', 'easy'),
+  mcq('int-t14', 'ignore = true', 'In a transform onBefore script, ignore = true means:', ['The instance shuts down', 'Skip this row (do not transform it)', 'Delete the target', 'Force a REST retry'], 1, 'Row-level skip.', 'easy'),
+  mcq('int-t15', 'ecc_queue', 'ecc_queue is involved when:', ['A user opens a list', 'The instance talks to a MID Server (probes, REST via MID, etc.)', 'A knowledge article is published', 'A standard change is approved only'], 1, 'ECC is the MID communication queue.', 'intermediate'),
+];

@@ -42,6 +42,7 @@ test('health and lab page are served', { timeout: 30000 }, async () => {
     assert.equal(standalone.status, 200);
     const lab = await standalone.text();
     assert.match(lab, /Copy solution into editor/);
+    assert.match(lab, /data-mode="theory"/);
 
     const grader = await fetch(`http://127.0.0.1:${PORT}/lib/grader.js`);
     assert.equal(grader.status, 200);

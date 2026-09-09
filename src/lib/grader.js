@@ -135,3 +135,28 @@ export function order(values, message) {
 export function minCount(value, count, message) {
   return { type: 'minCount', value, count, message };
 }
+
+export function normalizeTheoryAnswer(answer) {
+  return (Array.isArray(answer) ? answer : [answer])
+    .filter((item) => item !== undefined && item !== null && item !== '')
+    .map(String)
+    .sort();
+}
+
+export function gradeTheory(selected, question) {
+  const started = performance.now();
+  const expected = normalizeTheoryAnswer(question?.answer);
+  const got = normalizeTheoryAnswer(selected);
+  const passed = expected.length > 0 && got.length === expected.length && got.every((value, index) => value === expected[index]);
+  return {
+    passed,
+    results: [
+      {
+        ok: passed,
+        message: passed ? 'Correct' : 'Incorrect',
+        detail: passed ? 'matched' : 'Choose an answer, then Grade',
+      },
+    ],
+    durationMs: Math.max(0, performance.now() - started),
+  };
+}

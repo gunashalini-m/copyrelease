@@ -1,0 +1,19 @@
+import { mcq } from './helpers.js';
+
+export const theory = [
+  mcq('mim-t01', 'MIM field', 'major_incident_state is stored on:', ['problem', 'incident', 'change_request', 'em_alert only'], 1, 'Major Incident Management extends incident.', 'easy'),
+  mcq('mim-t02', 'Proposed', 'proposed major_incident_state means:', ['It is already the accepted MIM', 'Someone nominated the incident as a major; it is not yet accepted', 'It was rejected', 'The incident is a child only'], 1, 'Propose → accept/reject.', 'easy'),
+  mcq('mim-t03', 'Accepted impact', 'Accepting a MIM often sets impact/urgency/priority to 1 because:', ['Children cannot have CIs', 'It signals highest business impact and drives process/communication', 'State 1 means Closed', 'IRE requires it'], 1, 'Severity alignment.', 'easy'),
+  mcq('mim-t04', 'Children', 'Related user incidents under a MIM are typically linked via:', ['rfc', 'parent_incident', 'problem_id only', 'asset_tag'], 1, 'parent_incident clusters children under the MIM.', 'easy'),
+  mcq('mim-t05', 'Communication', 'A communication plan during MIM is important because:', ['GlideRecord cannot query incidents', 'Many stakeholders need coordinated updates', 'CAB is never involved', 'Knowledge cannot be used'], 1, 'MIM is as much communication as technical fix.', 'easy'),
+  mcq('mim-t06', 'Managers group', 'Assigning "Major Incident Managers" on accept is an example of:', ['IRE', 'Process routing to a dedicated group', 'A transform map coalesce', 'Client-only g_user'], 1, 'Work ownership.', 'easy'),
+  mcq('mim-t07', 'Reject', 'rejected major_incident_state means:', ['The incident was deleted', 'The nomination was declined; it remains a normal incident', 'All children closed', 'It became a problem automatically'], 1, 'Not promoted to MIM.', 'easy'),
+  mcq('mim-t08', 'Resolve children', 'When a MIM is resolved, child incidents are often:', ['Deleted', 'Resolved in bulk with the same resolution notes', 'Turned into changes', 'Moved to sc_request'], 1, 'Keep the cluster consistent; use setWorkflow(false) carefully.', 'intermediate'),
+  mcq('mim-t09', 'Cancel accepted MIM', 'Restricting who can cancel an accepted MIM uses:', ['CSS', 'Roles such as major_incident_manager / admin in a BR', 'Only UI Policy', 'MID Server'], 1, 'Server-side role checks.', 'intermediate'),
+  mcq('mim-t10', 'Workbench notes', 'work_notes like "Bridge opened" are used to:', ['Store encoded queries', 'Build a chronological technical/comms timeline', 'Replace cmdb_rel_ci', 'Set SLA pause automatically always'], 1, 'Timeline for the war room.', 'easy'),
+  mcq('mim-t11', 'onLoad banner', 'g_form.addInfoMessage on accepted MIM is for:', ['Persisting to the database', 'Alerting the fulfiller on the form', 'Sending SOAP', 'Creating CIs'], 1, 'UX awareness.', 'easy'),
+  mcq('mim-t12', 'Encoded proposed P1', 'major_incident_state=proposed^priority=1 finds:', ['Closed MIMs', 'P1 incidents waiting for MIM acceptance', 'All problems', 'Standard changes'], 1, 'Triage queue for potential majors.', 'easy'),
+  mcq('mim-t13', 'Same CI children', 'Attaching other incidents with the same cmdb_ci to a MIM is:', ['Forbidden in ITSM', 'A way to group impact on one CI', 'How IRE works', 'A catalog variable'], 1, 'Impact clustering.', 'intermediate'),
+  mcq('mim-t14', 'Close notes', 'Requiring close_notes to close an accepted MIM is:', ['A CMDB class', 'A quality gate for post-incident communication/RCA handoff', 'A REST status code', 'An SLA definition field'], 1, 'Do not close silently.', 'easy'),
+  mcq('mim-t15', 'GlideAjax isMajor', 'Returning whether major_incident_state is accepted from a Script Include is useful to:', ['Bypass ACLs for everyone', 'Let client scripts adapt the form without another round trip of the full record', 'Replace the CMDB', 'Start MID probes'], 1, 'Lightweight client checks.', 'intermediate'),
+];

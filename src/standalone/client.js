@@ -1,6 +1,6 @@
 /* global TOPICS, SNOW_API */
 (function () {
-  const STORAGE_KEY = 'snow-itsm-lab-v1';
+    const STORAGE_KEY = 'snow-itsm-lab-v2';
 
   const COMMENT_BLOCK = /\/\*[\s\S]*?\*\//g;
   const COMMENT_LINE = /(^|[^:\\])\/\/.*$/gm;
@@ -114,6 +114,7 @@
   var state = {
     topicId: TOPICS[0].id,
     questionId: TOPICS[0].questions[0].id,
+    mode: 'code',
     progress: loadProgress(),
     solutionOpen: false,
     acIndex: 0,
@@ -124,19 +125,55 @@
     return getTopic(state.topicId);
   }
 
-  function currentQuestion() {
+  function currentList() {
     var topic = currentTopic();
-    return topic.questions.find(function (item) { return item.id === state.questionId; }) || topic.questions[0];
+    return state.mode === 'theory' ? topic.theory : topic.questions;
   }
 
-  function passedCount(topic) {
-    return topic.questions.filter(function (item) { return state.progress.results[item.id] && state.progress.results[item.id].passed; }).length;
+  function currentQuestion() {
+    var list = currentList();
+    return list.find(function (item) { return item.id === state.questionId; }) || list[0];
+  }
+
+  function passedCount(topic, mode) {
+    var list = mode === 'theory' ? topic.theory : topic.questions;
+    return list.filter(function (item) { return state.progress.results[item.id] && state.progress.results[item.id].passed; }).length;
   }
 
   var textarea = document.getElementById('code');
   var acMenu = document.getElementById('ac-menu');
 
+  function persistTheory() {
+    var question = currentQuestion();
+    if (!question || !question.options) return;
+    if (question.multi) {
+      state.progress.answers[question.id] = Array.prototype.map.call(document.querySelectorAll('#theory-box input:checked'), function (el) { return el.value; });
+    } else {
+      var selected = document.querySelector('#theory-box input:checked');
+      state.progress.answers[question.id] = selected ? selected.value : '';
+    }
+    saveProgress(state.progress);
+  }
+
+  function persistCurrent() {
+    if (state.mode === 'theory') persistTheory();
+    else persistCode();
+  }
+
+  function gradeTheory(selected, question) {
+    var started = performance.now();
+    var expected = [].concat(question.answer).map(String).sort();
+    var got = [].concat(selected || []).filter(Boolean).map(String).sort();
+    var passed = expected.length > 0 && got.length === expected.length && got.every(function (v, i) { return v === expected[i]; });
+    return {
+      passed: passed,
+      results: [{ ok: passed, message: passed ? 'Correct' : 'Incorrect', detail: passed ? 'matched' : 'Choose an answer, then Grade' }],
+      durationMs: Math.max(0, performance.now() - started),
+    };
+  }
+
   function persistCode() {
+    if (state.mode !== 'code') return;
     state.progress.answers[currentQuestion().id] = textarea.value;
     saveProgress(state.progress);
   }
@@ -243,15 +280,16 @@
   function renderSidebar() {
     var nav = document.getElementById('topic-nav');
     nav.innerHTML = TOPICS.map(function (topic) {
-      var done = passedCount(topic);
+    var codeDone = passedCount(topic, 'code');
+      var theoryDone = passedCount(topic, 'theory');
       var active = topic.id === state.topicId ? 'active' : '';
-      return '<button class="topic ' + active + '" data-topic="' + topic.id + '"><span class="topic-title">' + escapeHtml(topic.title) + '</span><span class="topic-count">' + done + '/' + topic.questions.length + '</span></button>';
+      return '<button class="topic ' + active + '" data-topic="' + topic.id + '"><span class="topic-title">' + escapeHtml(topic.title) + '</span><span class="topic-count">' + codeDone + '/15 · ' + theoryDone + '/15</span></button>';
     }).join('');
     nav.querySelectorAll('.topic').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        persistCode();
+        persistCurrent();
         state.topicId = btn.getAttribute('data-topic');
-        state.questionId = getTopic(state.topicId).questions[0].id;
+        state.questionId = currentList()[0].id;
         state.solutionOpen = false;
         render();
       });
@@ -260,16 +298,16 @@
 
   function renderQuestionList() {
     var topic = currentTopic();
-    var list = document.getElementById('question-list');
-    list.innerHTML = topic.questions.map(function (item, index) {
+    var listEl = document.getElementById('question-list');
+    listEl.innerHTML = currentList().map(function (item, index) {
       var result = state.progress.results[item.id];
       var cls = item.id === state.questionId ? 'active' : '';
       if (result && result.passed) cls += ' passed';
       return '<button class="q-item ' + cls + '" data-qid="' + item.id + '"><span class="q-idx">' + String(index + 1).padStart(2, '0') + '</span><span class="q-name">' + escapeHtml(item.title) + '</span><span class="q-diff">' + escapeHtml(item.difficulty) + '</span></button>';
     }).join('');
-    list.querySelectorAll('.q-item').forEach(function (btn) {
+    listEl.querySelectorAll('.q-item').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        persistCode();
+        persistCurrent();
         state.questionId = btn.getAttribute('data-qid');
         state.solutionOpen = false;
         render();
@@ -277,10 +315,46 @@
     });
   }
 
+  function theorySolutionText(question) {
+    var ids = [].concat(question.answer);
+    var labels = ids.map(function (id) {
+      var option = (question.options || []).find(function (item) { return item.id === id; });
+      return option ? id.toUpperCase() + '. ' + option.text : id;
+    });
+    return labels.join('\n') + '\n\n' + (question.explanation || '');
+  }
+
+  function renderTheory() {
+    var box = document.getElementById('theory-box');
+    if (!box) return;
+    if (state.mode !== 'theory') {
+      box.innerHTML = '';
+      box.hidden = true;
+      return;
+    }
+    var question = currentQuestion();
+    var saved = state.progress.answers[question.id];
+    var selected = {};
+    [].concat(saved || []).forEach(function (id) { if (id) selected[id] = true; });
+    var inputType = question.multi ? 'checkbox' : 'radio';
+    box.hidden = false;
+    box.innerHTML = question.options.map(function (option) {
+      var on = selected[option.id] ? ' checked' : '';
+      var cls = selected[option.id] ? ' selected' : '';
+      return '<label class="theory-option' + cls + '"><input type="' + inputType + '" name="theory-' + question.id + '" value="' + option.id + '"' + on + ' /><span><strong>' + option.id.toUpperCase() + '.</strong> ' + escapeHtml(option.text) + '</span></label>';
+    }).join('');
+    box.querySelectorAll('input').forEach(function (input) {
+      input.addEventListener('change', function () {
+        persistTheory();
+        renderTheory();
+      });
+    });
+  }
+
   function renderGrade(result) {
     var box = document.getElementById('grade-results');
     if (!result) {
-      box.innerHTML = '<p class="muted">Press Grade (Ctrl/Cmd+Enter) for instant feedback. Type a ServiceNow API name for autocomplete.</p>';
+      box.innerHTML = '<p class="muted">' + (state.mode === 'theory' ? 'Pick an answer, then Grade.' : 'Press Grade (Ctrl/Cmd+Enter) for instant feedback. Type a ServiceNow API name for autocomplete.') + '</p>';
       box.className = 'grade-box';
       return;
     }
@@ -294,28 +368,41 @@
   function render() {
     var question = currentQuestion();
     var topic = currentTopic();
+    var isTheory = state.mode === 'theory';
     renderSidebar();
     renderQuestionList();
-    document.getElementById('crumb').textContent = topic.title + ' · ' + String(question.kind || 'server').replace(/_/g, ' ');
+    document.querySelectorAll('#mode-toggle [data-mode]').forEach(function (btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-mode') === state.mode);
+    });
+    document.getElementById('crumb').textContent = topic.title + ' · ' + (isTheory ? 'theory' : String(question.kind || 'server').replace(/_/g, ' '));
     document.getElementById('q-title').textContent = question.title;
     document.getElementById('q-prompt').textContent = question.prompt;
     var hint = document.getElementById('hint');
     hint.textContent = question.hint || '';
     hint.hidden = !question.hint;
     document.getElementById('solution-pane').hidden = !state.solutionOpen;
-    document.getElementById('solution-code').textContent = question.solution;
+    document.getElementById('solution-code').textContent = isTheory ? theorySolutionText(question) : question.solution;
     document.getElementById('reveal-btn').textContent = state.solutionOpen ? 'Hide solution' : 'Show solution';
-    textarea.value = state.progress.answers[question.id] != null ? state.progress.answers[question.id] : question.starter;
+    document.getElementById('apply-btn').textContent = isTheory ? 'Select correct answer' : 'Copy solution into editor';
+    document.getElementById('editor').hidden = isTheory;
+    renderTheory();
+    if (!isTheory) {
+      textarea.value = state.progress.answers[question.id] != null ? state.progress.answers[question.id] : question.starter;
+    }
     var last = state.progress.results[question.id];
     renderGrade(last && last.grade ? last.grade : null);
     document.getElementById('blurb').textContent = topic.blurb;
-    document.getElementById('progress-label').textContent = passedCount(topic) + ' of ' + topic.questions.length + ' passed in this topic';
+    document.getElementById('progress-label').textContent = isTheory
+      ? passedCount(topic, 'theory') + ' of 15 theory passed'
+      : passedCount(topic, 'code') + ' of 15 code passed';
   }
 
   function runGrade() {
-    persistCode();
+    persistCurrent();
     var question = currentQuestion();
-    var result = grade(textarea.value, hydrateChecks(question.checks));
+    var result = state.mode === 'theory'
+      ? gradeTheory(state.progress.answers[question.id], question)
+      : grade(textarea.value, hydrateChecks(question.checks));
     var prev = state.progress.results[question.id] || {};
     state.progress.results[question.id] = { passed: result.passed, grade: result, revealed: prev.revealed };
     saveProgress(state.progress);
@@ -333,13 +420,29 @@
     render();
   });
   document.getElementById('apply-btn').addEventListener('click', function () {
-    textarea.value = currentQuestion().solution;
+    var question = currentQuestion();
+    if (state.mode === 'theory') {
+      state.progress.answers[question.id] = question.answer;
+      saveProgress(state.progress);
+      renderTheory();
+      return;
+    }
+    textarea.value = question.solution;
     persistCode();
   });
   document.getElementById('reset-btn').addEventListener('click', function () {
     delete state.progress.answers[currentQuestion().id];
     saveProgress(state.progress);
-    textarea.value = currentQuestion().starter;
+    render();
+  });
+  document.querySelectorAll('#mode-toggle [data-mode]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      persistCurrent();
+      state.mode = btn.getAttribute('data-mode');
+      state.questionId = currentList()[0].id;
+      state.solutionOpen = false;
+      render();
+    });
   });
 
   textarea.addEventListener('input', function () {

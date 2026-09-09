@@ -114,6 +114,10 @@ const html = `<!DOCTYPE html>
         <p id="blurb" class="muted"></p>
         <p id="progress-label" class="progress"></p>
       </header>
+      <div id="mode-toggle" class="mode-toggle">
+        <button type="button" class="btn ghost active" data-mode="code">Code</button>
+        <button type="button" class="btn ghost" data-mode="theory">Theory</button>
+      </div>
       <div id="question-list" class="question-list"></div>
     </section>
     <main class="main">
@@ -131,6 +135,7 @@ const html = `<!DOCTYPE html>
       </header>
       <p id="q-prompt" class="prompt"></p>
       <p id="hint" class="hint" hidden></p>
+      <div id="theory-box" class="theory-box" hidden></div>
       <div id="editor" class="editor">
         <textarea id="code" spellcheck="false" autocomplete="off"></textarea>
         <div id="ac-menu" hidden></div>

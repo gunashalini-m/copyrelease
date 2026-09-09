@@ -1,0 +1,19 @@
+import { mcq } from './helpers.js';
+
+export const theory = [
+  mcq('cmdb-t01', 'CMDB purpose', 'The CMDB is primarily used to:', ['Store only incidents', 'Track configuration items and their relationships', 'Replace the knowledge base', 'Queue outbound email'], 1, 'CIs and relationships support impact analysis and ITSM.', 'easy'),
+  mcq('cmdb-t02', 'Base CI table', 'The common parent table for CIs is:', ['alm_asset', 'cmdb_ci', 'task', 'sys_user'], 1, 'Classes like cmdb_ci_server extend cmdb_ci.', 'easy'),
+  mcq('cmdb-t03', 'Relationships', 'CI-to-CI relationships are stored in:', ['cmdb_rel_type only', 'cmdb_rel_ci', 'incident.parent_incident', 'sc_item_option'], 1, 'cmdb_rel_ci uses parent, child, and type (cmdb_rel_type).', 'easy'),
+  mcq('cmdb-t04', 'Runs on', '"Runs on::Runs" is an example of:', ['An incident close code', 'A CI relationship type', 'A catalog stage', 'An SLA schedule'], 1, 'Relationship types describe direction and meaning.', 'easy'),
+  mcq('cmdb-t05', 'Operational status', 'operational_status = 1 typically means:', ['Retired', 'Operational', 'Repair in progress always', 'Missing from discovery'], 1, 'Confirm choice values on your instance; 1 is commonly Operational.', 'easy'),
+  mcq('cmdb-t06', 'Install status retired', 'install_status 7 is commonly:', ['In stock', 'Retired', 'Pending install', 'On order'], 1, 'Hardware/CI lifecycle uses install_status; 7 is often Retired.', 'easy'),
+  mcq('cmdb-t07', 'IRE', 'IdentificationEngine is used to:', ['Send SOAP only', 'Identify and reconcile CIs from a payload instead of blind inserts', 'Grade user quizzes', 'Create RITMs'], 1, 'IRE matches on identification rules to avoid duplicates.', 'intermediate'),
+  mcq('cmdb-t08', 'createOrUpdateCI', 'IdentificationEngine.createOrUpdateCI requires:', ['A browser session', 'A discovery source name and JSON payload', 'An incident number', 'g_form'], 1, 'The source string is the identification source.', 'intermediate'),
+  mcq('cmdb-t09', 'Support group', 'CI support_group is used for:', ['The user who last logged in', 'Routing support ownership of the CI', 'The MID Server default', 'Knowledge workflow'], 1, 'Often copied toward incident assignment.', 'easy'),
+  mcq('cmdb-t10', 'addNullQuery support_group', 'Listing CIs with no support group uses:', ['addNotNullQuery("support_group")', 'addNullQuery("support_group")', 'g_form.clearValue', 'SOAP'], 1, 'addNullQuery finds empty references.', 'easy'),
+  mcq('cmdb-t11', 'deleteMultiple relationships', 'When retiring a CI, related cmdb_rel_ci rows are often:', ['Left forever as-is', 'Deleted or ended so the graph stays accurate', 'Moved to incident', 'Converted to knowledge'], 1, 'Stale relationships break impact analysis.', 'intermediate'),
+  mcq('cmdb-t12', 'getReference', 'g_form.getReference("cmdb_ci", callback) is used to:', ['Query on the server without ACLs', 'Asynchronously load the referenced CI on the client', 'Replace GlideAggregate', 'Start a workflow'], 1, 'Client-side reference load with a callback.', 'intermediate'),
+  mcq('cmdb-t13', 'Duplicate names', 'Blocking insert of a CI with a duplicate name is typically a:', ['Client-only CSS rule', 'Before insert Business Rule or unique index/IR', 'RESTMessageV2 GET', 'Catalog client script on sc_request'], 1, 'Enforce uniqueness on the server.', 'intermediate'),
+  mcq('cmdb-t14', 'Walk children', 'To list CIs that a parent "runs on" you query:', ['incident where cmdb_ci = parent', 'cmdb_rel_ci where parent = ciId, then load child', 'alm_asset.model', 'task_sla.task'], 1, 'Relationships first, then the child CI.', 'intermediate'),
+  mcq('cmdb-t15', 'Class tables', 'cmdb_ci_linux_server vs cmdb_ci_win_server exists because:', ['Linux cannot be a CI', 'CMDB is class-extended for OS-specific attributes', 'IRE cannot store Windows', 'They are aliases of incident'], 1, 'Table-per-class extension model.', 'easy'),
+];

@@ -114,6 +114,47 @@ body {
   padding: 20px 16px 8px;
 }
 
+.mode-toggle {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 8px;
+}
+
+.mode-toggle .btn.active {
+  background: var(--accent);
+  color: #06210f;
+  font-weight: 600;
+}
+
+.theory-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
+.theory-option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  color: var(--text);
+}
+
+.theory-option:hover,
+.theory-option.selected {
+  border-color: #2f7a64;
+  background: #1a4a3d;
+}
+
+.theory-option input {
+  margin-top: 3px;
+}
+
 .progress {
   color: var(--accent-2);
   font-size: 13px;
