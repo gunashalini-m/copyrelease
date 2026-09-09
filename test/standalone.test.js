@@ -11,7 +11,7 @@ test('standalone HTML file is downloadable and self-contained', () => {
   assert.equal(fs.existsSync(file), true);
   const html = fs.readFileSync(file, 'utf8');
   assert.match(html, /data-mode="theory"/);
-  assert.match(html, /Incident table/);
+  assert.match(html, /current.update\(\) in a Business Rule/);
   assert.match(html, /Incident Management/);
   assert.match(html, /Integrations/);
   assert.match(html, /GlideRecord/);
