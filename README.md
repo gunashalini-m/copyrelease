@@ -2,14 +2,24 @@
 
 A browser-based simulator that asks you to write ServiceNow scripts for ITSM (including Integrations), autocompletes platform APIs as you type, and grades answers instantly. You can reveal a reference solution at any time.
 
-## Run locally
+## Open in your browser (no install)
+
+Download [`servicenow-itsm-lab.html`](./servicenow-itsm-lab.html) and double-click it, or open it with File → Open in Chrome/Edge/Firefox. Everything (questions, grader, API autocomplete) is inside that one file. No server and no internet required.
+
+To rebuild the file after editing questions:
+
+```bash
+npm run build:standalone
+```
+
+## Run locally with the hosted app
 
 ```bash
 npm ci
 npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). Use **Download HTML file** in the sidebar to save the same standalone lab.
 
 ## What you get
 

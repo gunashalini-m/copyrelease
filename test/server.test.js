@@ -36,6 +36,12 @@ test('health and lab page are served', { timeout: 30000 }, async () => {
     assert.equal(page.status, 200);
     const html = await page.text();
     assert.match(html, /ITSM Script Lab/);
+    assert.match(html, /Download HTML file/);
+
+    const standalone = await fetch(`http://127.0.0.1:${PORT}/servicenow-itsm-lab.html`);
+    assert.equal(standalone.status, 200);
+    const lab = await standalone.text();
+    assert.match(lab, /Copy solution into editor/);
 
     const grader = await fetch(`http://127.0.0.1:${PORT}/lib/grader.js`);
     assert.equal(grader.status, 200);
