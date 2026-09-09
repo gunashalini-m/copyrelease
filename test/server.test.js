@@ -5,7 +5,7 @@ import { test } from 'node:test';
 
 const PORT = 3456;
 
-async function waitForHealth(url, attempts = 30) {
+async function waitForHealth(url, attempts = 40) {
   for (let i = 0; i < attempts; i += 1) {
     try {
       const response = await fetch(url);
@@ -15,12 +15,12 @@ async function waitForHealth(url, attempts = 30) {
     } catch {
       // retry
     }
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 150));
   }
   throw new Error(`Server did not become healthy at ${url}`);
 }
 
-test('release create and copy flow', async () => {
+test('health and lab page are served', { timeout: 30000 }, async () => {
   const server = spawn('node', ['src/server.js'], {
     env: { ...process.env, PORT: String(PORT) },
     stdio: 'pipe',
@@ -28,26 +28,17 @@ test('release create and copy flow', async () => {
 
   try {
     await waitForHealth(`http://127.0.0.1:${PORT}/health`);
+    const health = await fetch(`http://127.0.0.1:${PORT}/health`);
+    const body = await health.json();
+    assert.equal(body.service, 'servicenow-itsm-lab');
 
-    const createResponse = await fetch(`http://127.0.0.1:${PORT}/releases`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ title: 'v1.0.0', body: 'Initial release notes' }),
-    });
+    const page = await fetch(`http://127.0.0.1:${PORT}/`);
+    assert.equal(page.status, 200);
+    const html = await page.text();
+    assert.match(html, /ITSM Script Lab/);
 
-    assert.equal(createResponse.status, 201);
-    const created = await createResponse.json();
-    assert.equal(created.title, 'v1.0.0');
-
-    const copyResponse = await fetch(`http://127.0.0.1:${PORT}/releases/${created.id}/copy`, {
-      method: 'POST',
-    });
-
-    assert.equal(copyResponse.status, 201);
-    const copied = await copyResponse.json();
-    assert.equal(copied.title, 'v1.0.0 (copy)');
-    assert.equal(copied.copiedFrom, created.id);
-    assert.equal(copied.body, created.body);
+    const grader = await fetch(`http://127.0.0.1:${PORT}/lib/grader.js`);
+    assert.equal(grader.status, 200);
   } finally {
     server.kill();
     await once(server, 'exit');
