@@ -553,79 +553,93 @@ export const SNOW_NAMESPACES = {
 export const SNOW_SNIPPETS = [
   {
     label: 'GlideRecord query loop',
-    insertText: `var ${1:gr} = new GlideRecord('\${2:incident}');
-$1.addQuery('\${3:active}', true);
-$1.query();
-while ($1.next()) {
-  gs.info($1.getValue('\${4:number}'));
-}`,
+    insertText: [
+      'var ${1:gr} = new GlideRecord(\'${2:incident}\');',
+      '$1.addQuery(\'${3:active}\', true);',
+      '$1.query();',
+      'while ($1.next()) {',
+      '  gs.info($1.getValue(\'${4:number}\'));',
+      '}',
+    ].join('\n'),
     documentation: 'Standard GlideRecord query and iteration.',
   },
   {
     label: 'GlideRecord get + update',
-    insertText: `var ${1:gr} = new GlideRecord('\${2:incident}');
-if ($1.get('\${3:sys_id}')) {
-  $1.setValue('\${4:state}', '\${5:2}');
-  $1.update();
-}`,
+    insertText: [
+      'var ${1:gr} = new GlideRecord(\'${2:incident}\');',
+      'if ($1.get(\'${3:sys_id}\')) {',
+      '  $1.setValue(\'${4:state}\', \'${5:2}\');',
+      '  $1.update();',
+      '}',
+    ].join('\n'),
     documentation: 'Load one record by sys_id and update it.',
   },
   {
     label: 'GlideAggregate COUNT',
-    insertText: `var ${1:ga} = new GlideAggregate('\${2:incident}');
-$1.addAggregate('COUNT');
-$1.addQuery('\${3:active}', true);
-$1.query();
-if ($1.next()) {
-  var count = parseInt($1.getAggregate('COUNT'), 10);
-}`,
+    insertText: [
+      'var ${1:ga} = new GlideAggregate(\'${2:incident}\');',
+      '$1.addAggregate(\'COUNT\');',
+      '$1.addQuery(\'${3:active}\', true);',
+      '$1.query();',
+      'if ($1.next()) {',
+      '  var count = parseInt($1.getAggregate(\'COUNT\'), 10);',
+      '}',
+    ].join('\n'),
     documentation: 'Count records with GlideAggregate.',
   },
   {
     label: 'RESTMessageV2 JSON POST',
-    insertText: `var rm = new sn_ws.RESTMessageV2();
-rm.setHttpMethod('POST');
-rm.setEndpoint('\${1:https://api.example.com/v1/items}');
-rm.setRequestHeader('Content-Type', 'application/json');
-rm.setRequestBody(JSON.stringify({ \${2:key}: '\${3:value}' }));
-var res = rm.execute();
-var body = res.getBody();
-var status = res.getStatusCode();`,
+    insertText: [
+      'var rm = new sn_ws.RESTMessageV2();',
+      'rm.setHttpMethod(\'POST\');',
+      'rm.setEndpoint(\'${1:https://api.example.com/v1/items}\');',
+      'rm.setRequestHeader(\'Content-Type\', \'application/json\');',
+      'rm.setRequestBody(JSON.stringify({ ${2:key}: \'${3:value}\' }));',
+      'var res = rm.execute();',
+      'var body = res.getBody();',
+      'var status = res.getStatusCode();',
+    ].join('\n'),
     documentation: 'Outbound REST POST with JSON body.',
   },
   {
     label: 'GlideAjax client call',
-    insertText: `var ga = new GlideAjax('\${1:ScriptIncludeName}');
-ga.addParam('sysparm_name', '\${2:methodName}');
-ga.addParam('\${3:sysparm_id}', g_form.getUniqueValue());
-ga.getXMLAnswer(function(answer) {
-  \${4:// use answer}
-});`,
+    insertText: [
+      'var ga = new GlideAjax(\'${1:ScriptIncludeName}\');',
+      'ga.addParam(\'sysparm_name\', \'${2:methodName}\');',
+      'ga.addParam(\'${3:sysparm_id}\', g_form.getUniqueValue());',
+      'ga.getXMLAnswer(function(answer) {',
+      '  ${4:// use answer}',
+      '});',
+    ].join('\n'),
     documentation: 'Client GlideAjax to a Script Include method.',
   },
   {
     label: 'Script Include Class.create',
-    insertText: `var \${1:MyInclude} = Class.create();
-$1.prototype = {
-  initialize: function() {
-  },
-  \${2:method}: function() {
-    \${3:}
-  },
-  type: '$1'
-};`,
+    insertText: [
+      'var ${1:MyInclude} = Class.create();',
+      '$1.prototype = {',
+      '  initialize: function() {',
+      '  },',
+      '  ${2:method}: function() {',
+      '    ${3:}',
+      '  },',
+      '  type: \'$1\'',
+      '};',
+    ].join('\n'),
     documentation: 'Server Script Include skeleton.',
   },
   {
     label: 'Client-callable Script Include',
-    insertText: `var \${1:MyAjax} = Class.create();
-$1.prototype = Object.extend(new AbstractAjaxProcessor(), {
-  \${2:method}: function() {
-    var id = this.getParameter('sysparm_id');
-    return id;
-  },
-  type: '$1'
-});`,
+    insertText: [
+      'var ${1:MyAjax} = Class.create();',
+      '$1.prototype = Object.extend(new AbstractAjaxProcessor(), {',
+      '  ${2:method}: function() {',
+      '    var id = this.getParameter(\'sysparm_id\');',
+      '    return id;',
+      '  },',
+      '  type: \'$1\'',
+      '});',
+    ].join('\n'),
     documentation: 'GlideAjax processor Script Include.',
   },
 ];

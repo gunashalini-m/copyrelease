@@ -2,6 +2,12 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { grade, stripComments } from '../src/lib/grader.js';
 import { TOPICS, allQuestions } from '../src/lib/questions/index.js';
+import { SNOW_CLASSES, SNOW_SNIPPETS } from '../src/lib/snow-api.js';
+
+test('ServiceNow API catalog loads with snippets', () => {
+  assert.ok(SNOW_CLASSES.GlideRecord.methods.length > 10);
+  assert.ok(SNOW_SNIPPETS.some((item) => item.insertText.includes('GlideRecord')));
+});
 
 test('each ITSM topic has at least 15 questions', () => {
   assert.ok(TOPICS.length >= 10, 'expected core ITSM topics plus integrations');
