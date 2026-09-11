@@ -136,6 +136,10 @@ body {
   padding: 0 16px 8px;
 }
 
+.mode-toggle[hidden] {
+  display: none !important;
+}
+
 .mode-toggle .btn.active {
   background: var(--accent);
   color: #06210f;

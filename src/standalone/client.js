@@ -432,12 +432,38 @@
     box.innerHTML = '<div class="grade-head">' + (result.passed ? 'Passed' : 'Not yet') + ' · ' + result.durationMs.toFixed(1) + ' ms</div><ul>' + rows + '</ul>';
   }
 
+  function examIndexForCurrent() {
+    var exam = currentExam();
+    for (var i = 0; i < exam.items.length; i += 1) {
+      if (exam.items[i].questionId === state.questionId && exam.items[i].mode === state.mode) return i;
+    }
+    return state.examIndex;
+  }
+
+  function nextExamIndexSameMode(fromIndex) {
+    var exam = currentExam();
+    for (var i = fromIndex + 1; i < exam.items.length; i += 1) {
+      if (exam.items[i].mode === state.mode) return i;
+    }
+    return -1;
+  }
+
+  function hasNextQuestion() {
+    if (state.view === 'exam') return nextExamIndexSameMode(examIndexForCurrent()) >= 0;
+    var list = currentList();
+    var idx = -1;
+    for (var i = 0; i < list.length; i += 1) {
+      if (list[i].id === state.questionId) { idx = i; break; }
+    }
+    return idx >= 0 && idx < list.length - 1;
+  }
+
   function goNext() {
     persistCurrent();
     state.solutionOpen = false;
     if (state.view === 'exam') {
-      var exam = currentExam();
-      if (state.examIndex < exam.items.length - 1) applyExamItem(state.examIndex + 1);
+      var next = nextExamIndexSameMode(examIndexForCurrent());
+      if (next >= 0) applyExamItem(next);
     } else {
       var list = currentList();
       var idx = -1;
@@ -473,18 +499,7 @@
     document.getElementById('apply-btn').textContent = isTheory ? 'Select correct answer' : 'Copy solution into editor';
     document.getElementById('editor').hidden = isTheory;
     var nextBtn = document.getElementById('next-btn');
-    if (nextBtn) {
-      if (state.view === 'exam') {
-        nextBtn.disabled = state.examIndex >= currentExam().items.length - 1;
-      } else {
-        var plist = currentList();
-        var pidx = -1;
-        for (var pi = 0; pi < plist.length; pi += 1) {
-          if (plist[pi].id === state.questionId) { pidx = pi; break; }
-        }
-        nextBtn.disabled = pidx < 0 || pidx >= plist.length - 1;
-      }
-    }
+    if (nextBtn) nextBtn.disabled = !hasNextQuestion();
     renderTheory();
     if (!isTheory) {
       textarea.value = state.progress.answers[question.id] != null ? state.progress.answers[question.id] : question.starter;
@@ -545,8 +560,18 @@
   document.querySelectorAll('#mode-toggle [data-mode]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       persistCurrent();
-      state.mode = btn.getAttribute('data-mode');
-      state.questionId = currentList()[0].id;
+      var mode = btn.getAttribute('data-mode');
+      if (state.view === 'exam') {
+        var exam = currentExam();
+        var idx = -1;
+        for (var i = 0; i < exam.items.length; i += 1) {
+          if (exam.items[i].mode === mode) { idx = i; break; }
+        }
+        if (idx >= 0) applyExamItem(idx);
+      } else {
+        state.mode = mode;
+        state.questionId = currentList()[0].id;
+      }
       state.solutionOpen = false;
       render();
     });

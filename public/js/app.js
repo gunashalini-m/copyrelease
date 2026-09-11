@@ -233,13 +233,7 @@ function renderPrompt() {
   document.getElementById('theory-box').hidden = !isTheory;
   const nextBtn = document.getElementById('next-btn');
   if (nextBtn) {
-    if (state.view === 'exam') {
-      nextBtn.disabled = state.examIndex >= currentExam().items.length - 1;
-    } else {
-      const list = currentList();
-      const idx = list.findIndex((item) => item.id === state.questionId);
-      nextBtn.disabled = idx < 0 || idx >= list.length - 1;
-    }
+    nextBtn.disabled = !hasNextQuestion();
   }
 }
 
@@ -297,16 +291,40 @@ function codeForQuestion(question) {
   return state.progress.answers[question.id] ?? question.starter;
 }
 
+function examIndexForCurrent() {
+  const exam = currentExam();
+  const matched = exam.items.findIndex(
+    (item) => item.questionId === state.questionId && item.mode === state.mode,
+  );
+  return matched >= 0 ? matched : state.examIndex;
+}
+
+function nextExamIndexSameMode(fromIndex) {
+  const exam = currentExam();
+  const mode = state.mode;
+  for (let i = fromIndex + 1; i < exam.items.length; i += 1) {
+    if (exam.items[i].mode === mode) return i;
+  }
+  return -1;
+}
+
+function hasNextQuestion() {
+  if (state.view === 'exam') {
+    return nextExamIndexSameMode(examIndexForCurrent()) >= 0;
+  }
+  const list = activeQuestions(currentTopic(), state.mode);
+  const idx = list.findIndex((item) => item.id === state.questionId);
+  return idx >= 0 && idx < list.length - 1;
+}
+
 function goNext() {
   persistCurrent();
   state.solutionOpen = false;
   if (state.view === 'exam') {
-    const exam = currentExam();
-    if (state.examIndex < exam.items.length - 1) {
-      applyExamItem(state.examIndex + 1);
-    }
+    const next = nextExamIndexSameMode(examIndexForCurrent());
+    if (next >= 0) applyExamItem(next);
   } else {
-    const list = currentList();
+    const list = activeQuestions(currentTopic(), state.mode);
     const idx = list.findIndex((item) => item.id === state.questionId);
     if (idx >= 0 && idx < list.length - 1) {
       state.questionId = list[idx + 1].id;
@@ -405,8 +423,14 @@ function bind() {
   document.querySelectorAll('#mode-toggle [data-mode]').forEach((btn) => {
     btn.addEventListener('click', () => {
       persistCurrent();
-      state.mode = btn.dataset.mode;
-      state.questionId = currentList()[0].id;
+      const mode = btn.dataset.mode;
+      if (state.view === 'exam') {
+        const idx = currentExam().items.findIndex((item) => item.mode === mode);
+        if (idx >= 0) applyExamItem(idx);
+      } else {
+        state.mode = mode;
+        state.questionId = activeQuestions(currentTopic(), mode)[0].id;
+      }
       state.solutionOpen = false;
       render();
     });
