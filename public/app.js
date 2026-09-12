@@ -42,7 +42,12 @@ function formatInr(value) {
   return `₹${grouped}.${fraction}`;
 }
 
-function invoiceNumber(sequence = Number(document.getElementById('sequence').value)) {
+function formatDateDisplay(isoDate) {
+  if (!isoDate) return '';
+  const [year, month, day] = String(isoDate).split('-');
+  if (!day) return isoDate;
+  return `${day}/${month}/${year}`;
+}
   const pad = settings?.sequencePadding ?? 3;
   const width = Math.max(pad, String(sequence).length);
   return `${settings?.invoicePrefix ?? 'INTSINV'}${String(sequence).padStart(width, '0')}`;
@@ -238,7 +243,7 @@ function previewSrcDoc(invoice) {
       <div><strong>Bill To</strong><br>${escapeHtml(invoice.client.contactName)}<br>${escapeHtml(invoice.client.companyName)}<br>${address(invoice.client.address)}<br>GSTIN: ${escapeHtml(invoice.client.gstin)}</div>
     </div>
     <div class="grid">
-      <div><strong>Invoice Number:</strong> ${escapeHtml(invoice.number)}<br><strong>Invoice Date:</strong> ${escapeHtml(invoice.invoiceDate)}</div>
+      <div><strong>Invoice Number:</strong> ${escapeHtml(invoice.number)}<br><strong>Invoice Date:</strong> ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</div>
       <div class="blue">BANK DETAILS</div>
       <div></div>
       <div>Bank Name: ${escapeHtml(invoice.bank.bankName)}<br>A/C Holder Name: ${escapeHtml(invoice.bank.holderName)}<br>Account number: ${escapeHtml(invoice.bank.accountNumber)}<br>IFSC: ${escapeHtml(invoice.bank.ifsc)}<br>Account Type: ${escapeHtml(invoice.bank.accountType)}<br>Branch: ${escapeHtml(invoice.bank.branch)}</div>
