@@ -2,6 +2,13 @@
 
 Web app for creating GST invoices for Introis Technologies.
 
+## Download (no npm needed)
+
+- **Zip of this project:** https://github.com/gunashalini-m/copyrelease/archive/refs/heads/cursor/invoice-generator-16f6.zip
+- **Single file (open in Chrome/Edge):** https://github.com/gunashalini-m/copyrelease/raw/cursor/invoice-generator-16f6/Introis-Invoice-Generator.html
+
+On a Mac, unzip, then double-click `Introis-Invoice-Generator.html`. If macOS blocks it, right-click → Open → Open.
+
 ## Features
 
 - Sequential invoice numbers (`INTSINV099`, then `INTSINV100`, …) with a manually editable next sequence
