@@ -5,7 +5,7 @@ import { test } from 'node:test';
 
 const PORT = 3456;
 
-async function waitForHealth(url, attempts = 30) {
+async function waitForHealth(url, attempts = 50) {
   for (let i = 0; i < attempts; i += 1) {
     try {
       const response = await fetch(url);
@@ -20,7 +20,7 @@ async function waitForHealth(url, attempts = 30) {
   throw new Error(`Server did not become healthy at ${url}`);
 }
 
-test('release create and copy flow', async () => {
+test('release create and copy flow', { timeout: 20000 }, async () => {
   const server = spawn('node', ['src/server.js'], {
     env: { ...process.env, PORT: String(PORT) },
     stdio: 'pipe',
@@ -48,6 +48,55 @@ test('release create and copy flow', async () => {
     assert.equal(copied.title, 'v1.0.0 (copy)');
     assert.equal(copied.copiedFrom, created.id);
     assert.equal(copied.body, created.body);
+
+    const mapResponse = await fetch(`http://127.0.0.1:${PORT}/release-change-state-map`);
+    assert.equal(mapResponse.status, 200);
+    const map = await mapResponse.json();
+    assert.equal(map.authorizeAndApproval.releaseWhenPending, 'awaiting_approval');
+    assert.equal(map.map.scheduled, 'scheduled');
+
+    const resolveResponse = await fetch(`http://127.0.0.1:${PORT}/release-change-state-map/resolve`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        parentChangeNumber: 'CHG0001234',
+        changeState: 'Authorize',
+        changeApproval: 'requested',
+        currentReleaseState: 'draft',
+      }),
+    });
+    assert.equal(resolveResponse.status, 200);
+    const resolved = await resolveResponse.json();
+    assert.equal(resolved.releaseState, 'awaiting_approval');
+    assert.equal(resolved.changed, true);
+
+    const backResponse = await fetch(`http://127.0.0.1:${PORT}/release-change-state-map/resolve`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        parentChangeNumber: 'CHG0001234',
+        changeState: 'Assess',
+        changeApproval: 'not requested',
+        currentReleaseState: 'awaiting_approval',
+      }),
+    });
+    const movedBack = await backResponse.json();
+    assert.equal(movedBack.releaseState, 'draft');
+    assert.equal(movedBack.changed, true);
+
+    const noParentResponse = await fetch(`http://127.0.0.1:${PORT}/release-change-state-map/resolve`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        changeState: 'Authorize',
+        changeApproval: 'requested',
+        currentReleaseState: 'scheduled',
+      }),
+    });
+    const noParent = await noParentResponse.json();
+    assert.equal(noParent.releaseState, 'draft');
+    assert.equal(noParent.reason, 'no_parent');
+    assert.equal(noParent.changed, true);
   } finally {
     server.kill();
     await once(server, 'exit');

@@ -1,0 +1,88 @@
+{
+  "description": "Release state follows the Change in the Release parent field only, via a Decision Table. Re-read when that Change's state or approval changes, including when it moves backwards. No parent → Draft.",
+  "tables": {
+    "change": "change_request",
+    "release": "rm_release"
+  },
+  "link": {
+    "releaseParentField": "parent",
+    "note": "Only the Change number (or sys_id) on rm_release.parent is used. Other links are ignored. Empty parent keeps the Release in Draft."
+  },
+  "noParentReleaseState": "draft",
+  "changeStateValues": {
+    "new": "-5",
+    "assess": "-4",
+    "authorize": "-3",
+    "approval": "approval",
+    "scheduled": "-2",
+    "implement": "-1",
+    "review": "0",
+    "closed": "3",
+    "canceled": "4"
+  },
+  "changeStateAliases": {
+    "pending": "new",
+    "authorization": "authorize",
+    "implementation": "implement",
+    "closed complete": "closed",
+    "cancelled": "canceled"
+  },
+  "releaseStateValues": {
+    "draft": "draft",
+    "awaiting_approval": "awaiting_approval",
+    "approved": "approved",
+    "scheduled": "scheduled",
+    "implementation": "implementation",
+    "review": "review",
+    "closed": "closed",
+    "cancelled": "cancelled"
+  },
+  "releaseStateLabels": {
+    "draft": "Draft",
+    "awaiting_approval": "Awaiting Approval",
+    "approved": "Approved",
+    "scheduled": "Scheduled",
+    "implementation": "Implementation",
+    "review": "Review",
+    "closed": "Closed Complete",
+    "cancelled": "Cancelled"
+  },
+  "map": {
+    "new": "draft",
+    "assess": "draft",
+    "scheduled": "scheduled",
+    "implement": "implementation",
+    "review": "review",
+    "closed": "closed",
+    "canceled": "cancelled"
+  },
+  "authorizeAndApproval": {
+    "changeStates": ["authorize", "approval"],
+    "releaseWhenPending": "awaiting_approval",
+    "releaseWhenApproved": "approved",
+    "pendingApprovals": ["requested", "not requested", "rejected", "cancelled", "canceled", ""]
+  },
+  "testCases": [
+    "No parent on the Release → Draft (Release before-rule)",
+    "Parent cleared → Draft",
+    "Only the Change in Release.parent is used; other Change links are ignored",
+    "New → Draft",
+    "Assess → Draft",
+    "Authorize with approval requested / not requested / rejected / blank → Awaiting Approval",
+    "Approval state (same as Authorize, still waiting) → Awaiting Approval",
+    "Authorize after the Change is approved → Approved",
+    "Approval state after the Change is approved → Approved",
+    "Scheduled → Scheduled",
+    "Implement → Implementation",
+    "Review → Review",
+    "Closed → Closed Complete",
+    "Canceled (or Cancelled spelling) → Cancelled",
+    "ServiceNow numeric values (-5 New, -3 Authorize, …) resolve the same as labels",
+    "Forward path: New → Assess → Authorize (pending) → Authorize (approved) → Scheduled → Implement → Review → Closed",
+    "Backward path: Scheduled → Authorize (pending) moves Release Scheduled → Awaiting Approval",
+    "Backward path: Authorize → Assess moves Release → Draft",
+    "Canceled from any point moves Release to Cancelled",
+    "Unknown Change state leaves the Release where it is",
+    "No write when the Release is already on the mapped state"
+  ]
+}
