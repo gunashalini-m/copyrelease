@@ -306,6 +306,10 @@ document.querySelectorAll('nav button').forEach((button) => {
     if (button.dataset.view === 'history') {
       await loadInvoices();
     }
+    if (button.dataset.view === 'settings') {
+      settings = await api('/api/settings');
+      fillSettingsForm();
+    }
   });
 });
 
@@ -333,6 +337,7 @@ document.getElementById('invoice-form').addEventListener('submit', async (event)
     toast(`Saved ${invoice.number}`);
     settings = await api('/api/settings');
     document.getElementById('sequence').value = settings.nextSequence;
+    document.getElementById('s-next').value = settings.nextSequence;
     updateNumberFields();
     await loadInvoices();
   } catch (error) {

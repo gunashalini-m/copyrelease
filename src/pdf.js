@@ -30,7 +30,7 @@ export async function renderInvoicePdf(invoice) {
     return await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '12mm', right: '12mm', bottom: '12mm', left: '12mm' },
+      margin: { top: '12mm', right: '14mm', bottom: '12mm', left: '14mm' },
     });
   } finally {
     await browser.close();
