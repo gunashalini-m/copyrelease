@@ -1,0 +1,232 @@
+{
+  "name": "9c4e2a71-8b3d-4f12-9e56-a1b2c3d4e5f6",
+  "id": "/providers/Microsoft.Flow/flows/9c4e2a71-8b3d-4f12-9e56-a1b2c3d4e5f6",
+  "type": "Microsoft.Flow/flows",
+  "properties": {
+    "apiId": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+    "displayName": "Axis DS attachments to OneDrive",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "10.0.0.6",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "type": "Request",
+          "kind": "Button",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "description": "First day in IST (DD-MM-YYYY)",
+                  "title": "Start date",
+                  "type": "string",
+                  "format": "date",
+                  "x-ms-dynamically-added": true,
+                  "x-ms-content-hint": "DATE"
+                },
+                "date_1": {
+                  "description": "Last day in IST; includes mail through 23:50 that day",
+                  "title": "End date",
+                  "type": "string",
+                  "format": "date",
+                  "x-ms-dynamically-added": true,
+                  "x-ms-content-hint": "DATE"
+                },
+                "number": {
+                  "description": "Use 1 while testing",
+                  "title": "Max emails",
+                  "type": "number",
+                  "x-ms-dynamically-added": true,
+                  "x-ms-content-hint": "NUMBER"
+                }
+              },
+              "required": [
+                "date",
+                "date_1",
+                "number"
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "UTC_start": {
+          "runAfter": {},
+          "type": "Compose",
+          "inputs": "@convertTimeZone(concat(formatDateTime(triggerBody()?['date'],'yyyy-MM-dd'),'T00:00:00'),'India Standard Time','UTC','yyyy-MM-ddTHH:mm:ssZ')"
+        },
+        "UTC_end": {
+          "runAfter": {
+            "UTC_start": [
+              "Succeeded"
+            ]
+          },
+          "type": "Compose",
+          "inputs": "@convertTimeZone(concat(formatDateTime(triggerBody()?['date_1'],'yyyy-MM-dd'),'T23:50:00'),'India Standard Time','UTC','yyyy-MM-ddTHH:mm:ssZ')"
+        },
+        "Get_emails_V3": {
+          "runAfter": {
+            "UTC_end": [
+              "Succeeded"
+            ]
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+              "connectionName": "shared_office365",
+              "operationId": "GetEmailsV3"
+            },
+            "parameters": {
+              "folderPath": "Inbox/Axis",
+              "fetchOnlyUnread": false,
+              "includeAttachments": true,
+              "fetchOnlyWithAttachment": true,
+              "importance": "Any",
+              "top": "@int(triggerBody()?['number'])",
+              "searchQuery": "@{concat('received:', formatDateTime(outputs('UTC_start'),'yyyy-MM-dd'), '..', formatDateTime(outputs('UTC_end'),'yyyy-MM-dd'))}"
+            }
+          }
+        },
+        "Filter_by_received_IST_range": {
+          "runAfter": {
+            "Get_emails_V3": [
+              "Succeeded"
+            ]
+          },
+          "type": "Query",
+          "inputs": {
+            "from": "@body('Get_emails_V3')?['value']",
+            "where": "@and(greaterOrEquals(ticks(item()?['receivedDateTime']), ticks(outputs('UTC_start'))), lessOrEquals(ticks(item()?['receivedDateTime']), ticks(outputs('UTC_end'))))"
+          }
+        },
+        "For_each_email": {
+          "runAfter": {
+            "Filter_by_received_IST_range": [
+              "Succeeded"
+            ]
+          },
+          "type": "Foreach",
+          "foreach": "@body('Filter_by_received_IST_range')",
+          "runtimeConfiguration": {
+            "concurrency": {
+              "repetitions": 1
+            }
+          },
+          "actions": {
+            "Attachment_names_on_email": {
+              "type": "Compose",
+              "inputs": "@join(select(coalesce(items('For_each_email')?['attachments'], items('For_each_email')?['Attachments'], json('[]')), string(coalesce(item()?['name'], item()?['Name'], '(no name)'))), ', ')"
+            },
+            "Filter_DS_attachments": {
+              "runAfter": {
+                "Attachment_names_on_email": [
+                  "Succeeded",
+                  "Failed",
+                  "Skipped"
+                ]
+              },
+              "type": "Query",
+              "inputs": {
+                "from": "@coalesce(items('For_each_email')?['attachments'], items('For_each_email')?['Attachments'], json('[]'))",
+                "where": "@or(contains(toLower(string(coalesce(item()?['name'], item()?['Name'], ''))), '_ds_'), contains(string(coalesce(item()?['name'], item()?['Name'], '')), 'DS'))"
+              }
+            },
+            "For_each_DS_attachment": {
+              "runAfter": {
+                "Filter_DS_attachments": [
+                  "Succeeded"
+                ]
+              },
+              "type": "Foreach",
+              "foreach": "@body('Filter_DS_attachments')",
+              "runtimeConfiguration": {
+                "concurrency": {
+                  "repetitions": 1
+                }
+              },
+              "actions": {
+                "Attachment_name": {
+                  "type": "Compose",
+                  "inputs": "@trim(string(coalesce(items('For_each_DS_attachment')?['name'], items('For_each_DS_attachment')?['Name'], '')))"
+                },
+                "Get_Attachment_V2": {
+                  "runAfter": {
+                    "Attachment_name": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection",
+                  "retryPolicy": {
+                    "type": "None"
+                  },
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                      "connectionName": "shared_office365",
+                      "operationId": "GetAttachment_V2"
+                    },
+                    "parameters": {
+                      "messageId": "@items('For_each_email')?['id']",
+                      "attachmentId": "@coalesce(items('For_each_DS_attachment')?['id'], items('For_each_DS_attachment')?['Id'])"
+                    }
+                  }
+                },
+                "Create_file": {
+                  "runAfter": {
+                    "Get_Attachment_V2": [
+                      "Succeeded"
+                    ]
+                  },
+                  "type": "OpenApiConnection",
+                  "retryPolicy": {
+                    "type": "None"
+                  },
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness",
+                      "connectionName": "shared_onedriveforbusiness",
+                      "operationId": "CreateFile"
+                    },
+                    "parameters": {
+                      "folderPath": "/",
+                      "name": "@outputs('Attachment_name')",
+                      "body": "@coalesce(body('Get_Attachment_V2')?['contentBytes'], items('For_each_DS_attachment')?['contentBytes'])"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "outputs": {}
+    },
+    "connectionReferences": {
+      "shared_office365": {
+        "connectionName": "shared_office365",
+        "source": "Embedded",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_office365",
+        "tier": "NotSpecified"
+      },
+      "shared_onedriveforbusiness": {
+        "connectionName": "shared_onedriveforbusiness",
+        "source": "Embedded",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness",
+        "tier": "NotSpecified"
+      }
+    },
+    "flowFailureAlertSubscribed": false,
+    "isManaged": false
+  }
+}
