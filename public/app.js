@@ -135,16 +135,17 @@ function addItem(item = { description: '', quantity: 1, unitPrice: 0 }) {
   const row = document.createElement('div');
   row.className = 'item-row';
   row.innerHTML = `
-    <label>Description <input class="desc" value="${item.description ?? ''}"></label>
+    <label>Description <textarea class="desc" rows="3" placeholder="Press Enter for a new line"></textarea></label>
     <label>Qty <input class="qty" type="number" min="0" step="1" value="${item.quantity ?? 1}"></label>
     <label>Unit price <input class="price" type="number" min="0" step="0.01" value="${item.unitPrice ?? 0}"></label>
     <button type="button" class="ghost remove" aria-label="Remove item">×</button>
   `;
+  row.querySelector('.desc').value = item.description ?? '';
   row.querySelector('.remove').addEventListener('click', () => {
     row.remove();
     refreshPreview();
   });
-  row.querySelectorAll('input').forEach((input) => input.addEventListener('input', refreshPreview));
+  row.querySelectorAll('input, textarea').forEach((input) => input.addEventListener('input', refreshPreview));
   document.getElementById('items').append(row);
 }
 
@@ -220,46 +221,63 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;');
 }
 
-function previewSrcDoc(invoice) {
+function invoiceDocumentHtml(invoice) {
+  const logo = window.__ASSETS?.logo || 'assets/logo.png';
+  const signature = window.__ASSETS?.signature || 'assets/signature.png';
   const rows = invoice.lineItems
     .map(
       (item, index) =>
-        `<tr><td>${index + 1}</td><td>${escapeHtml(item.description).replaceAll('\n', '<br>')}</td><td style="text-align:right">${formatInr(item.unitPrice)}</td><td style="text-align:right">${formatInr(item.lineTotal)}</td></tr>`,
+        `<tr><td style="text-align:center">${index + 1}</td><td>${escapeHtml(item.description).replaceAll('\n', '<br>')}</td><td style="text-align:right">${formatInr(item.unitPrice)}</td><td style="text-align:right">${formatInr(item.lineTotal)}</td></tr>`,
     )
     .join('');
   const address = (value) => escapeHtml(value).replaceAll('\n', '<br>');
-  return `<!DOCTYPE html><html><head><style>
-    body{font-family:Calibri,Segoe UI,Arial,sans-serif;color:#1c1c1c;padding:18px;font-size:13px}
-    .head{display:flex;justify-content:space-between;align-items:flex-start}
-    img.logo{height:52px} h1{color:#1b2c6b;margin:0}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
-    table{width:100%;border-collapse:collapse} th{background:#cfe6f7;text-align:left}
-    th,td{border:1px solid #d5dbe3;padding:8px}
-    .blue{color:#1d5fa8;font-weight:700}
-    .tot{width:280px;margin-left:auto}
-    .tot div{display:flex;justify-content:space-between}
-  </style></head><body>
-    <div class="head"><img class="logo" src="${window.__ASSETS?.logo || 'assets/logo.png'}"><div style="text-align:right"><h1>INVOICE</h1><div>${escapeHtml(invoice.paymentKind)}</div></div></div>
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(invoice.number)}</title>
+    <style>
+      @page { size: A4; margin: 14mm; }
+      body{font-family:Calibri,"Segoe UI",Arial,sans-serif;color:#1a1a1a;padding:8px;font-size:12px;line-height:1.38}
+      .head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+      img.logo{height:62px;width:auto;max-width:280px;object-fit:contain;object-position:left top;display:block}
+      h1{color:#1b2c6b;margin:0;font-size:28px}
+      .grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;margin:12px 0;align-items:start}
+      table.items{width:100%;border-collapse:collapse;table-layout:fixed}
+      table.items th{background:#cfe6f7;text-align:center}
+      table.items th, table.items td{border:1px solid #d5dbe3;padding:8px 10px}
+      .blue{color:#1d5fa8;font-weight:700;text-decoration:underline;text-underline-offset:2px}
+      .totals{width:310px;margin:10px 0 0 auto;border-collapse:collapse}
+      .totals td{color:#1d5fa8;font-weight:700;text-align:right;padding:2px 0 2px 12px;vertical-align:top}
+      .sign{text-align:right}
+      .sign img{height:56px;width:auto;max-width:240px;object-fit:contain;display:block;margin:0 0 4px auto}
+      .line{border-top:2px solid #1d5fa8;display:inline-block;min-width:220px;padding-top:4px;color:#1d5fa8;font-weight:800}
+      .page-break{page-break-before:always}
+    </style></head><body>
+    <div class="head"><img class="logo" src="${logo}" alt="Introis Technologies"><div style="text-align:right"><h1>INVOICE</h1><div>${escapeHtml(invoice.paymentKind)}</div></div></div>
     <div class="grid">
-      <div><strong>From</strong><br>${escapeHtml(invoice.company.name)}<br>${address(invoice.company.address)}<br>GSTIN: ${escapeHtml(invoice.company.gstin)}</div>
-      <div><strong>Bill To</strong><br>${escapeHtml(invoice.client.contactName)}<br>${escapeHtml(invoice.client.companyName)}<br>${address(invoice.client.address)}<br>GSTIN: ${escapeHtml(invoice.client.gstin)}</div>
+      <div><strong>From</strong><br>${escapeHtml(invoice.company.name)}<br>${address(invoice.company.address)}<br>Phone: ${escapeHtml(invoice.company.phone)}<br>Email: ${escapeHtml(invoice.company.email)}<br>GSTIN: ${escapeHtml(invoice.company.gstin)}</div>
+      <div><strong>Bill To</strong><br>${escapeHtml(invoice.client.contactName)}<br>${escapeHtml(invoice.client.companyName)}<br>${address(invoice.client.address)}<br>Email: ${escapeHtml(invoice.client.email)}<br>GSTIN of Recipient: ${escapeHtml(invoice.client.gstin)}</div>
     </div>
     <div class="grid">
       <div><strong>Invoice Number:</strong> ${escapeHtml(invoice.number)}<br><strong>Invoice Date:</strong> ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</div>
-      <div class="blue">BANK DETAILS</div>
-      <div></div>
-      <div>Bank Name: ${escapeHtml(invoice.bank.bankName)}<br>A/C Holder Name: ${escapeHtml(invoice.bank.holderName)}<br>Account number: ${escapeHtml(invoice.bank.accountNumber)}<br>IFSC: ${escapeHtml(invoice.bank.ifsc)}<br>Account Type: ${escapeHtml(invoice.bank.accountType)}<br>Branch: ${escapeHtml(invoice.bank.branch)}</div>
+      <div><strong>BANK DETAILS</strong><br>Bank Name: ${escapeHtml(invoice.bank.bankName)}<br>A/C Holder Name: ${escapeHtml(invoice.bank.holderName)}<br>Account number: ${escapeHtml(invoice.bank.accountNumber)}<br>Bank IFSC Code: ${escapeHtml(invoice.bank.ifsc)}<br>Account Type: ${escapeHtml(invoice.bank.accountType)}<br>Account Branch: ${escapeHtml(invoice.bank.branch)}</div>
     </div>
     <p class="blue">PROJECT OVERVIEW</p>
-    <p><strong>Project Name:</strong> ${escapeHtml(invoice.projectName)}<br><strong>Duration:</strong> ${escapeHtml(invoice.duration)}</p>
-    <table><thead><tr><th>S.No</th><th>Description</th><th>Unit Price</th><th>Line Total</th></tr></thead><tbody>${rows}</tbody></table>
-    <div class="tot blue">
-      <div><span>Total Without Taxes</span><span>${formatInr(invoice.subtotal)}</span></div>
-      <div><span>SGST @9%</span><span>${formatInr(invoice.sgst)}</span></div>
-      <div><span>CGST @9%</span><span>${formatInr(invoice.cgst)}</span></div>
-      <div><span>Total Invoice Value</span><span>${formatInr(invoice.total)}</span></div>
+    <p><strong>Project Name:</strong> ${escapeHtml(invoice.projectName)}<br><strong>Duration of Project Completion:</strong> ${escapeHtml(invoice.duration)}</p>
+    <table class="items"><thead><tr><th>S.No</th><th>Description</th><th>Unit Price</th><th>Line Total</th></tr></thead><tbody>${rows}</tbody></table>
+    <table class="totals">
+      <tr><td>Total Without<br>Taxes</td><td>${formatInr(invoice.subtotal)}</td></tr>
+      <tr><td>SGST @9%</td><td>${formatInr(invoice.sgst)}</td></tr>
+      <tr><td>CGST @9%</td><td>${formatInr(invoice.cgst)}</td></tr>
+      <tr><td>Total Invoice<br>Value</td><td>${formatInr(invoice.total)}</td></tr>
+    </table>
+    <div class="grid" style="margin-top:28px">
+      <div><p class="blue">CLIENT ACCEPTANCE</p><p>Client Name:</p><p>Date:</p><p>Signature:</p></div>
+      <div class="sign"><img src="${signature}" alt="Authorised signature"><div class="line">AUTHORISED SIGNATURE</div><p>Name: ${escapeHtml(invoice.signatory.name)}<br>Designation: ${escapeHtml(invoice.signatory.designation)}<br>Date: ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</p></div>
     </div>
+    <div class="page-break"><h2>Terms and Conditions</h2>${(invoice.terms || []).map((term) => `<p>${escapeHtml(term)}</p>`).join('')}</div>
   </body></html>`;
+}
+
+function previewSrcDoc(invoice) {
+  return invoiceDocumentHtml(invoice);
 }
 
 function triggerDownload(blob, filename) {
@@ -274,63 +292,24 @@ function triggerDownload(blob, filename) {
 }
 
 function openPrintableInvoice(invoice) {
-  const logo = window.__ASSETS?.logo || 'assets/logo.png';
-  const signature = window.__ASSETS?.signature || 'assets/signature.png';
-  const rows = invoice.lineItems
-    .map(
-      (item, index) =>
-        `<tr><td style="text-align:center">${index + 1}</td><td>${escapeHtml(item.description).replaceAll('\n', '<br>')}</td><td style="text-align:right">${formatInr(item.unitPrice)}</td><td style="text-align:right">${formatInr(item.lineTotal)}</td></tr>`,
-    )
-    .join('');
-  const address = (value) => escapeHtml(value).replaceAll('\n', '<br>');
-  const html = `<!DOCTYPE html><html><head><title>${escapeHtml(invoice.number)}</title>
-    <style>
-      @page { size: A4; margin: 12mm; }
-      body{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:12px}
-      .head{display:flex;justify-content:space-between;align-items:flex-start}
-      img.logo{height:48px} h1{color:#1b2c6b;margin:0}
-      .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0}
-      table{width:100%;border-collapse:collapse} th{background:#cfe6f7;text-align:left}
-      th,td{border:1px solid #d5dbe3;padding:7px}
-      .blue{color:#1d5fa8;font-weight:700}
-      .tot{width:280px;margin-left:auto}
-      .tot div{display:flex;justify-content:space-between}
-      .sign{text-align:right} .sign img{height:34px}
-      .page-break{page-break-before:always}
-    </style></head><body>
-    <div class="head"><img class="logo" src="${logo}"><div style="text-align:right"><h1>INVOICE</h1><div>${escapeHtml(invoice.paymentKind)}</div></div></div>
-    <div class="grid">
-      <div><strong>From</strong><br>${escapeHtml(invoice.company.name)}<br>${address(invoice.company.address)}<br>Phone: ${escapeHtml(invoice.company.phone)}<br>Email: ${escapeHtml(invoice.company.email)}<br>GSTIN: ${escapeHtml(invoice.company.gstin)}</div>
-      <div><strong>Bill To</strong><br>${escapeHtml(invoice.client.contactName)}<br>${escapeHtml(invoice.client.companyName)}<br>${address(invoice.client.address)}<br>Email: ${escapeHtml(invoice.client.email)}<br>GSTIN of Recipient: ${escapeHtml(invoice.client.gstin)}</div>
-    </div>
-    <div class="grid">
-      <div><strong>Invoice Number:</strong> ${escapeHtml(invoice.number)}<br><strong>Invoice Date:</strong> ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</div>
-      <div><strong class="blue">BANK DETAILS</strong><br>Bank Name: ${escapeHtml(invoice.bank.bankName)}<br>A/C Holder Name: ${escapeHtml(invoice.bank.holderName)}<br>Account number: ${escapeHtml(invoice.bank.accountNumber)}<br>IFSC: ${escapeHtml(invoice.bank.ifsc)}<br>Account Type: ${escapeHtml(invoice.bank.accountType)}<br>Branch: ${escapeHtml(invoice.bank.branch)}</div>
-    </div>
-    <p class="blue">PROJECT OVERVIEW</p>
-    <p><strong>Project Name:</strong> ${escapeHtml(invoice.projectName)}<br><strong>Duration of Project Completion:</strong> ${escapeHtml(invoice.duration)}</p>
-    <table><thead><tr><th>S.No</th><th>Description</th><th>Unit Price</th><th>Line Total</th></tr></thead><tbody>${rows}</tbody></table>
-    <div class="tot blue">
-      <div><span>Total Without Taxes</span><span>${formatInr(invoice.subtotal)}</span></div>
-      <div><span>SGST @9%</span><span>${formatInr(invoice.sgst)}</span></div>
-      <div><span>CGST @9%</span><span>${formatInr(invoice.cgst)}</span></div>
-      <div><span>Total Invoice Value</span><span>${formatInr(invoice.total)}</span></div>
-    </div>
-    <div class="grid" style="margin-top:28px">
-      <div><p class="blue">CLIENT ACCEPTANCE</p><p>Client Name:</p><p>Date:</p><p>Signature:</p></div>
-      <div class="sign"><img src="${signature}" alt=""><div class="blue">AUTHORISED SIGNATURE</div><p>Name: ${escapeHtml(invoice.signatory.name)}<br>Designation: ${escapeHtml(invoice.signatory.designation)}<br>Date: ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</p></div>
-    </div>
-    <div class="page-break"><h2>Terms and Conditions</h2>${(invoice.terms || []).map((term) => `<p>${escapeHtml(term)}</p>`).join('')}</div>
-  </body></html>`;
   const popup = window.open('', '_blank');
   if (!popup) {
     throw new Error('Allow pop-ups to print or save the invoice as a PDF');
   }
   popup.document.open();
-  popup.document.write(html);
+  popup.document.write(invoiceDocumentHtml(invoice));
   popup.document.close();
   popup.focus();
   popup.print();
+}
+
+function downloadWord(invoice) {
+  const inner = invoiceDocumentHtml(invoice);
+  const word = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">${inner.replace('<!DOCTYPE html><html>', '').replace('</html>', '')}</html>`;
+  triggerDownload(
+    new Blob(['\ufeff', word], { type: 'application/msword' }),
+    `${invoice.number}.doc`,
+  );
 }
 
 async function consumePdfResponse(response, filename) {
@@ -378,6 +357,7 @@ async function loadInvoices() {
           <td>${formatInr(invoice.total)}</td>
           <td>
             <button type="button" class="ghost" data-pdf="${invoice.id}" data-name="${invoice.number}">Download PDF</button>
+            · <button type="button" class="ghost" data-word="${invoice.id}">Word</button>
             · <button type="button" class="ghost" data-reuse="${invoice.id}">Reuse</button>
           </td>
         </tr>`,
@@ -403,7 +383,7 @@ function loadSample() {
     unitPrice: 2550,
   });
   addItem({
-    description: 'Meta Advertisement Posting Charges\n(Facebook& Instagram Handles)',
+    description: 'Meta Advertisement Posting Charges\n(Facebook & Instagram Handles)',
     quantity: 1,
     unitPrice: 3000,
   });
@@ -463,6 +443,15 @@ document.getElementById('download-pdf').addEventListener('click', async () => {
   }
 });
 
+document.getElementById('download-word').addEventListener('click', async () => {
+  try {
+    const invoice = await api('/api/invoices/preview', { method: 'POST', body: formPayload() });
+    downloadWord(invoice);
+  } catch (error) {
+    toast(error.message);
+  }
+});
+
 document.getElementById('client-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const id = document.getElementById('client-id').value;
@@ -514,10 +503,20 @@ document.getElementById('client-list').addEventListener('click', async (event) =
 
 document.getElementById('invoice-rows').addEventListener('click', async (event) => {
   const pdfId = event.target.dataset.pdf;
+  const wordId = event.target.dataset.word;
   const id = event.target.dataset.reuse;
   if (pdfId) {
     try {
       await downloadSavedPdf(pdfId, event.target.dataset.name);
+    } catch (error) {
+      toast(error.message);
+    }
+    return;
+  }
+  if (wordId) {
+    try {
+      const invoice = await api(`/api/invoices/${wordId}`);
+      downloadWord(invoice);
     } catch (error) {
       toast(error.message);
     }

@@ -89,9 +89,14 @@ input, select, textarea {
   grid-template-columns: 1.6fr 80px 120px 36px;
   gap: 8px;
   margin-bottom: 8px;
-  align-items: end;
+  align-items: start;
 }
-.item-row button { height: 38px; }
+.item-row .desc {
+  min-height: 64px;
+  resize: vertical;
+  font: inherit;
+}
+.item-row button { height: 38px; margin-top: 22px; }
 .totals-card {
   margin: 12px 0;
   padding: 12px;

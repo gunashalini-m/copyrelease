@@ -18,108 +18,133 @@ export function invoiceStyles() {
     html, body {
       margin: 0;
       padding: 0;
-      color: #111;
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 11.5px;
-      line-height: 1.32;
+      color: #1a1a1a;
+      font-family: Calibri, "Segoe UI", Arial, Helvetica, sans-serif;
+      font-size: 12px;
+      line-height: 1.38;
     }
     .header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 14px;
+      margin-bottom: 18px;
     }
-    .logo { height: 48px; width: auto; }
-    .header-right { text-align: right; }
+    .logo {
+      display: block;
+      height: 62px;
+      width: auto;
+      max-width: 280px;
+      object-fit: contain;
+      object-position: left top;
+    }
+    .header-right { text-align: right; padding-top: 2px; }
     .invoice-title {
       margin: 0;
-      font-size: 26px;
+      font-size: 28px;
       color: #1b2c6b;
       font-weight: 800;
-      letter-spacing: 0.4px;
+      letter-spacing: 0.6px;
+      line-height: 1.1;
     }
     .invoice-kind {
-      margin: 2px 0 0;
-      color: #667;
-      font-size: 11px;
-      letter-spacing: 0.5px;
+      margin: 4px 0 0;
+      color: #5b6578;
+      font-size: 11.5px;
+      letter-spacing: 0.8px;
       font-weight: 700;
     }
     .two-col {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      column-gap: 36px;
-      margin-bottom: 10px;
+      column-gap: 48px;
+      align-items: start;
+      margin-bottom: 14px;
     }
-    .label { font-weight: 700; margin: 0 0 4px; }
-    .block p { margin: 0; }
-    .meta-row { margin: 0 0 2px; }
+    .label { font-weight: 700; margin: 0 0 5px; }
+    .block p { margin: 0 0 1px; }
+    .meta-row { margin: 0 0 3px; }
     .bank-title {
       font-weight: 800;
-      margin: 0 0 4px;
+      margin: 0 0 5px;
       text-transform: uppercase;
-      font-size: 12px;
+      font-size: 12.5px;
     }
     .section-title {
       color: #1d5fa8;
       font-weight: 800;
-      font-size: 12.5px;
-      margin: 12px 0 6px;
+      font-size: 13px;
+      margin: 14px 0 6px;
       text-transform: uppercase;
+      text-decoration: underline;
+      text-underline-offset: 2px;
     }
     table.items {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 8px;
+      margin-top: 10px;
+      table-layout: fixed;
     }
     table.items th {
       background: #cfe6f7;
       color: #1d3557;
       font-weight: 700;
-      padding: 6px 8px;
-      text-align: left;
+      padding: 8px 10px;
+      text-align: center;
       border: 1px solid #b9d6ec;
     }
     table.items td {
-      padding: 7px 8px;
+      padding: 9px 10px;
       border: 1px solid #d5dbe3;
-      vertical-align: top;
+      vertical-align: middle;
     }
-    table.items td.num, table.items th.num { text-align: right; white-space: nowrap; width: 110px; }
-    table.items td.center, table.items th.center { text-align: center; width: 44px; }
-    .totals { width: 280px; margin: 8px 0 0 auto; }
-    .totals .row {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 1px 0;
+    table.items td.desc { text-align: left; }
+    table.items td.num, table.items th.num { text-align: right; white-space: nowrap; width: 18%; }
+    table.items td.center, table.items th.center { text-align: center; width: 8%; }
+    .totals {
+      width: 310px;
+      margin: 10px 0 0 auto;
+      border-collapse: collapse;
+    }
+    .totals td {
       color: #1d5fa8;
       font-weight: 700;
+      padding: 2px 0 2px 12px;
+      vertical-align: top;
     }
-    .totals .row.grand { font-size: 13px; margin-top: 2px; }
+    .totals td.lab { text-align: right; width: 58%; }
+    .totals td.amt { text-align: right; white-space: nowrap; }
     .footer-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-top: 20px;
-      align-items: end;
+      gap: 24px;
+      margin-top: 28px;
+      align-items: start;
     }
+    .accept p { margin: 0 0 6px; }
     .sign { text-align: right; }
-    .sign img { height: 34px; width: auto; display: block; margin: 0 0 2px auto; }
+    .sign img {
+      height: 56px;
+      width: auto;
+      max-width: 240px;
+      object-fit: contain;
+      object-position: right bottom;
+      display: block;
+      margin: 0 0 4px auto;
+    }
     .sign .line {
       border-top: 2px solid #1d5fa8;
       display: inline-block;
-      min-width: 190px;
-      padding-top: 3px;
+      min-width: 220px;
+      padding-top: 4px;
       color: #1d5fa8;
       font-weight: 800;
-      letter-spacing: 0.3px;
-      font-size: 11px;
+      letter-spacing: 0.4px;
+      font-size: 11.5px;
     }
-    .sign p { margin: 6px 0 0; }
+    .sign p { margin: 8px 0 0; }
     .page-break { page-break-before: always; break-before: page; }
-    .terms h2 { font-size: 15px; margin: 0 0 10px; }
-    .terms p { margin: 0 0 7px; max-width: 620px; }
+    .terms h2 { font-size: 16px; margin: 0 0 12px; }
+    .terms p { margin: 0 0 8px; max-width: 640px; }
   `;
 }
 
@@ -132,7 +157,7 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
   const rows = invoice.lineItems
     .map(
       (item, index) =>
-        `<tr><td class="center">${index + 1}</td><td>${multiline(item.description)}</td><td class="num">${formatInr(item.unitPrice)}</td><td class="num">${formatInr(item.lineTotal)}</td></tr>`,
+        `<tr><td class="center">${index + 1}</td><td class="desc">${multiline(item.description)}</td><td class="num">${formatInr(item.unitPrice)}</td><td class="num">${formatInr(item.lineTotal)}</td></tr>`,
     )
     .join('');
 
@@ -185,7 +210,7 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
     </div>
   </div>
   <p class="section-title">Project Overview</p>
-  <p style="margin:0 0 2px"><strong>Project Name:</strong> ${escapeHtml(invoice.projectName)}</p>
+  <p style="margin:0 0 3px"><strong>Project Name:</strong> ${escapeHtml(invoice.projectName)}</p>
   <p style="margin:0"><strong>Duration of Project Completion:</strong> ${escapeHtml(invoice.duration)}</p>
   <table class="items">
     <thead>
@@ -198,14 +223,14 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
     </thead>
     <tbody>${rows}</tbody>
   </table>
-  <div class="totals">
-    <div class="row"><span>Total Without Taxes</span><span>${formatInr(invoice.subtotal)}</span></div>
-    <div class="row"><span>SGST @${invoice.sgstRate}%</span><span>${formatInr(invoice.sgst)}</span></div>
-    <div class="row"><span>CGST @${invoice.cgstRate}%</span><span>${formatInr(invoice.cgst)}</span></div>
-    <div class="row grand"><span>Total Invoice Value</span><span>${formatInr(invoice.total)}</span></div>
-  </div>
+  <table class="totals">
+    <tr><td class="lab">Total Without<br>Taxes</td><td class="amt">${formatInr(invoice.subtotal)}</td></tr>
+    <tr><td class="lab">SGST @${invoice.sgstRate}%</td><td class="amt">${formatInr(invoice.sgst)}</td></tr>
+    <tr><td class="lab">CGST @${invoice.cgstRate}%</td><td class="amt">${formatInr(invoice.cgst)}</td></tr>
+    <tr><td class="lab">Total Invoice<br>Value</td><td class="amt">${formatInr(invoice.total)}</td></tr>
+  </table>
   <div class="footer-grid">
-    <div>
+    <div class="accept">
       <p class="section-title" style="margin-top:0">Client Acceptance</p>
       <p>Client Name:</p>
       <p>Date:</p>
