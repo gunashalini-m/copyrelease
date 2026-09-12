@@ -47,6 +47,15 @@ test('at least five exams mix code and theory and cover the full bank', () => {
   }
 });
 
+test('grading a solution still works after grading the starter', () => {
+  for (const question of allQuestions().slice(0, 8)) {
+    assert.equal(grade(question.starter, question.checks).passed, false, `${question.id} starter`);
+    assert.equal(grade(question.solution, question.checks).passed, true, `${question.id} solution after starter`);
+    assert.equal(grade(question.starter, question.checks).passed, false, `${question.id} starter again`);
+    assert.equal(grade(question.solution, question.checks).passed, true, `${question.id} solution after reset`);
+  }
+});
+
 test('official code solutions pass and starters fail', () => {
   for (const question of allQuestions()) {
     const pass = grade(question.solution, question.checks);

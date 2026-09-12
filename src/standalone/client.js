@@ -132,6 +132,7 @@
     solutionOpen: false,
     acIndex: 0,
     acItems: [],
+    reloadEditor: true,
   };
 
   function currentExam() {
@@ -205,9 +206,13 @@
   }
 
   function persistCode() {
-    if (state.mode !== 'code') return;
-    state.progress.answers[currentQuestion().id] = textarea.value;
-    saveProgress(state.progress);
+    if (state.mode !== 'code' || !textarea) return;
+    try {
+      state.progress.answers[currentQuestion().id] = textarea.value;
+      saveProgress(state.progress);
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   function snippetInsert(text) {
@@ -502,7 +507,14 @@
     if (nextBtn) nextBtn.disabled = !hasNextQuestion();
     renderTheory();
     if (!isTheory) {
-      textarea.value = state.progress.answers[question.id] != null ? state.progress.answers[question.id] : question.starter;
+      var stored = state.progress.answers[question.id];
+      var nextVal = stored != null ? stored : question.starter;
+      var sameQuestion = textarea.getAttribute('data-qid') === question.id;
+      if (state.reloadEditor || !sameQuestion) {
+        textarea.value = nextVal;
+        textarea.setAttribute('data-qid', question.id);
+        state.reloadEditor = false;
+      }
     }
     var last = state.progress.results[question.id];
     renderGrade(last && last.grade ? last.grade : null);
@@ -518,14 +530,19 @@
   }
 
   function runGrade() {
-    persistCurrent();
     var question = currentQuestion();
-    var result = state.mode === 'theory'
-      ? gradeTheory(state.progress.answers[question.id], question)
-      : grade(textarea.value, hydrateChecks(question.checks));
-    var prev = state.progress.results[question.id] || {};
-    state.progress.results[question.id] = { passed: result.passed, grade: result, revealed: prev.revealed };
-    saveProgress(state.progress);
+    var result;
+    if (state.mode === 'theory' || (question && question.options)) {
+      persistTheory();
+      result = gradeTheory(state.progress.answers[question.id], question);
+    } else {
+      var code = textarea.value;
+      state.progress.answers[question.id] = code;
+      try { saveProgress(state.progress); } catch (e) { console.error(e); }
+      result = grade(code, hydrateChecks(question.checks));
+    }
+    state.progress.results[question.id] = { passed: result.passed, grade: result };
+    try { saveProgress(state.progress); } catch (e) { console.error(e); }
     renderSidebar();
     renderQuestionList();
     renderGrade(result);
@@ -551,8 +568,12 @@
     persistCode();
   });
   document.getElementById('reset-btn').addEventListener('click', function () {
-    delete state.progress.answers[currentQuestion().id];
-    saveProgress(state.progress);
+    var question = currentQuestion();
+    delete state.progress.answers[question.id];
+    delete state.progress.results[question.id];
+    state.solutionOpen = false;
+    state.reloadEditor = true;
+    try { saveProgress(state.progress); } catch (e) { console.error(e); }
     render();
   });
   var nextEl = document.getElementById('next-btn');

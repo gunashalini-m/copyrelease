@@ -14,6 +14,9 @@ const state = {
   editor: null,
   progress: loadProgress(),
   solutionOpen: false,
+  suppressPersist: false,
+  editorKey: '',
+  reloadEditor: true,
 };
 
 function loadProgress() {
@@ -68,11 +71,15 @@ function examPassedCount(exam) {
 }
 
 function persistCode() {
-  if (state.mode !== 'code' || !state.editor) {
+  if (state.suppressPersist || state.mode !== 'code' || !state.editor) {
     return;
   }
-  state.progress.answers[currentQuestion().id] = state.editor.getValue();
-  saveProgress();
+  try {
+    state.progress.answers[currentQuestion().id] = state.editor.getValue();
+    saveProgress();
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 function persistTheory() {
@@ -291,6 +298,44 @@ function codeForQuestion(question) {
   return state.progress.answers[question.id] ?? question.starter;
 }
 
+function editorKey() {
+  return `${state.topicId}:${state.questionId}:${state.mode}`;
+}
+
+function liveCode() {
+  if (state.editor && typeof state.editor.getValue === 'function') {
+    return state.editor.getValue();
+  }
+  return codeForQuestion(currentQuestion());
+}
+
+function isTheoryQuestion(question) {
+  return state.mode === 'theory' || Boolean(question?.options);
+}
+
+function syncEditor(force) {
+  if (state.mode !== 'code' || !state.editor) {
+    return;
+  }
+  const key = editorKey();
+  if (!force && !state.reloadEditor && state.editorKey === key) {
+    return;
+  }
+  state.suppressPersist = true;
+  try {
+    state.editor.setValue(codeForQuestion(currentQuestion()));
+  } finally {
+    state.suppressPersist = false;
+    state.editorKey = key;
+    state.reloadEditor = false;
+  }
+  try {
+    state.editor.layout?.();
+  } catch {
+    // Monaco layout is optional (fallback textarea has no layout()).
+  }
+}
+
 function examIndexForCurrent() {
   const exam = currentExam();
   const matched = exam.items.findIndex(
@@ -340,9 +385,7 @@ async function render() {
   renderPrompt();
   renderTheory();
   const question = currentQuestion();
-  if (state.mode === 'code' && state.editor) {
-    state.editor.setValue(codeForQuestion(question));
-  }
+  syncEditor(false);
   const last = state.progress.results[question.id];
   renderGrade(last?.grade || null);
   if (state.view === 'exam') {
@@ -361,22 +404,29 @@ async function render() {
 }
 
 function runGrade() {
-  persistCurrent();
   const question = currentQuestion();
   let result;
-  if (state.mode === 'theory') {
+  if (isTheoryQuestion(question)) {
+    try {
+      persistTheory();
+    } catch (error) {
+      console.error(error);
+    }
     result = gradeTheory(state.progress.answers[question.id], question);
   } else {
-    const code = state.editor ? state.editor.getValue() : codeForQuestion(question);
+    const code = liveCode();
+    state.progress.answers[question.id] = code;
     result = grade(code, question.checks);
   }
-  const prev = state.progress.results[question.id] || {};
   state.progress.results[question.id] = {
-    ...prev,
     passed: result.passed,
     grade: result,
   };
-  saveProgress();
+  try {
+    saveProgress();
+  } catch (error) {
+    console.error(error);
+  }
   renderSidebar();
   renderQuestionList();
   renderGrade(result);
@@ -406,12 +456,23 @@ function applySolution() {
 function resetCode() {
   const question = currentQuestion();
   delete state.progress.answers[question.id];
-  saveProgress();
+  delete state.progress.results[question.id];
+  state.solutionOpen = false;
+  try {
+    saveProgress();
+  } catch (error) {
+    console.error(error);
+  }
   if (state.mode === 'code') {
-    state.editor?.setValue(question.starter);
+    state.reloadEditor = true;
+    syncEditor(true);
   } else {
     renderTheory();
   }
+  renderPrompt();
+  renderSidebar();
+  renderQuestionList();
+  renderGrade(null);
 }
 
 function bind() {
