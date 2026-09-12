@@ -233,24 +233,29 @@ function invoiceDocumentHtml(invoice) {
   const address = (value) => escapeHtml(value).replaceAll('\n', '<br>');
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(invoice.number)}</title>
     <style>
+      @font-face { font-family: Carlito; src: url("${window.__ASSETS?.fonts?.regular || (location.protocol === 'file:' ? 'fonts/Carlito-Regular.woff2' : '/fonts/Carlito-Regular.woff2')}") format("woff2"); font-weight: 400; }
+      @font-face { font-family: Carlito; src: url("${window.__ASSETS?.fonts?.bold || (location.protocol === 'file:' ? 'fonts/Carlito-Bold.woff2' : '/fonts/Carlito-Bold.woff2')}") format("woff2"); font-weight: 700; }
       @page { size: A4; margin: 14mm; }
-      body{font-family:Calibri,"Segoe UI",Arial,sans-serif;color:#1a1a1a;padding:8px;font-size:12px;line-height:1.38}
+      body{font-family:Calibri,Carlito,Arial,sans-serif;color:#111;padding:8px;font-size:11pt;line-height:1.35}
       .head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
-      img.logo{height:62px;width:auto;max-width:280px;object-fit:contain;object-position:left top;display:block}
-      h1{color:#1b2c6b;margin:0;font-size:28px}
-      .grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;margin:12px 0;align-items:start}
-      table.items{width:100%;border-collapse:collapse;table-layout:fixed}
-      table.items th{background:#cfe6f7;text-align:center}
-      table.items th, table.items td{border:1px solid #d5dbe3;padding:8px 10px}
-      .blue{color:#1d5fa8;font-weight:700;text-decoration:underline;text-underline-offset:2px}
-      .totals{width:310px;margin:10px 0 0 auto;border-collapse:collapse}
-      .totals td{color:#1d5fa8;font-weight:700;text-align:right;padding:2px 0 2px 12px;vertical-align:top}
+      img.logo{height:58px;width:auto;max-width:260px;object-fit:contain;object-position:left top;display:block}
+      h1{color:#0a3a7a;margin:0;font-size:22pt;font-weight:700}
+      .kind{color:#666;font-size:10pt;font-weight:700;letter-spacing:0.6px;margin-top:3px}
+      .grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;margin:12px 0;align-items:start}
+      table.items{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11pt}
+      table.items th{background:#c5e4f8;text-align:center;color:#111;font-weight:700}
+      table.items th, table.items td{border:1px solid #b7d4ea;padding:7px 10px}
+      table.items td{background:#eef6fc;font-weight:400}
+      .blue{color:#0a3a7a;font-weight:700;text-decoration:underline;text-underline-offset:2px;font-size:11pt}
+      .totals{width:300px;margin:8px 0 0 auto;border-collapse:collapse}
+      .totals td{color:#0a3a7a;font-weight:700;text-align:right;padding:1px 0 1px 12px;vertical-align:top;font-size:11pt}
       .sign{text-align:right}
-      .sign img{height:56px;width:auto;max-width:240px;object-fit:contain;display:block;margin:0 0 4px auto}
-      .line{border-top:2px solid #1d5fa8;display:inline-block;min-width:220px;padding-top:4px;color:#1d5fa8;font-weight:800}
+      .sign img{height:52px;width:auto;max-width:230px;object-fit:contain;display:block;margin:0 0 4px auto}
+      .line{border-top:2px solid #0a3a7a;display:inline-block;min-width:210px;padding-top:3px;color:#0a3a7a;font-weight:700;font-size:11pt}
       .page-break{page-break-before:always}
+      p, td { font-size: 11pt; }
     </style></head><body>
-    <div class="head"><img class="logo" src="${logo}" alt="Introis Technologies"><div style="text-align:right"><h1>INVOICE</h1><div>${escapeHtml(invoice.paymentKind)}</div></div></div>
+    <div class="head"><img class="logo" src="${logo}" alt="Introis Technologies"><div style="text-align:right"><h1>INVOICE</h1><div class="kind">${escapeHtml(invoice.paymentKind)}</div></div></div>
     <div class="grid">
       <div><strong>From</strong><br>${escapeHtml(invoice.company.name)}<br>${address(invoice.company.address)}<br>Phone: ${escapeHtml(invoice.company.phone)}<br>Email: ${escapeHtml(invoice.company.email)}<br>GSTIN: ${escapeHtml(invoice.company.gstin)}</div>
       <div><strong>Bill To</strong><br>${escapeHtml(invoice.client.contactName)}<br>${escapeHtml(invoice.client.companyName)}<br>${address(invoice.client.address)}<br>Email: ${escapeHtml(invoice.client.email)}<br>GSTIN of Recipient: ${escapeHtml(invoice.client.gstin)}</div>

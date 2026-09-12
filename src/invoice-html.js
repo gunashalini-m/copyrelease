@@ -1,4 +1,28 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { formatDateDisplay, formatInr, formatInvoiceNumber } from './money.js';
+
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+function fontFaceCss() {
+  const regular = readFileSync(path.join(root, 'public/fonts/Carlito-Regular.woff2')).toString('base64');
+  const bold = readFileSync(path.join(root, 'public/fonts/Carlito-Bold.woff2')).toString('base64');
+  return `
+    @font-face {
+      font-family: Carlito;
+      src: url(data:font/woff2;base64,${regular}) format('woff2');
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: Carlito;
+      src: url(data:font/woff2;base64,${bold}) format('woff2');
+      font-weight: 700;
+      font-style: normal;
+    }
+  `;
+}
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -14,14 +38,15 @@ function multiline(value) {
 
 export function invoiceStyles() {
   return `
+    ${fontFaceCss()}
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       padding: 0;
-      color: #1a1a1a;
-      font-family: Calibri, "Segoe UI", Arial, Helvetica, sans-serif;
-      font-size: 12px;
-      line-height: 1.38;
+      color: #111111;
+      font-family: Calibri, Carlito, Arial, Helvetica, sans-serif;
+      font-size: 11pt;
+      line-height: 1.35;
     }
     .header {
       display: flex;
@@ -31,49 +56,51 @@ export function invoiceStyles() {
     }
     .logo {
       display: block;
-      height: 62px;
+      height: 58px;
       width: auto;
-      max-width: 280px;
+      max-width: 260px;
       object-fit: contain;
       object-position: left top;
     }
     .header-right { text-align: right; padding-top: 2px; }
     .invoice-title {
       margin: 0;
-      font-size: 28px;
-      color: #1b2c6b;
-      font-weight: 800;
-      letter-spacing: 0.6px;
+      font-size: 22pt;
+      color: #0a3a7a;
+      font-weight: 700;
+      letter-spacing: 0.4px;
       line-height: 1.1;
     }
     .invoice-kind {
-      margin: 4px 0 0;
-      color: #5b6578;
-      font-size: 11.5px;
-      letter-spacing: 0.8px;
+      margin: 3px 0 0;
+      color: #666666;
+      font-size: 10pt;
+      letter-spacing: 0.6px;
       font-weight: 700;
     }
     .two-col {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      column-gap: 48px;
+      column-gap: 56px;
       align-items: start;
       margin-bottom: 14px;
     }
-    .label { font-weight: 700; margin: 0 0 5px; }
-    .block p { margin: 0 0 1px; }
-    .meta-row { margin: 0 0 3px; }
+    .label { font-weight: 700; font-size: 11pt; margin: 0 0 4px; color: #111111; }
+    .block p { margin: 0; font-size: 11pt; font-weight: 400; }
+    .block p strong { font-weight: 700; }
+    .meta-row { margin: 0 0 2px; font-size: 11pt; }
     .bank-title {
-      font-weight: 800;
-      margin: 0 0 5px;
+      font-weight: 700;
+      margin: 0 0 4px;
       text-transform: uppercase;
-      font-size: 12.5px;
+      font-size: 11pt;
+      color: #111111;
     }
     .section-title {
-      color: #1d5fa8;
-      font-weight: 800;
-      font-size: 13px;
-      margin: 14px 0 6px;
+      color: #0a3a7a;
+      font-weight: 700;
+      font-size: 11pt;
+      margin: 16px 0 6px;
       text-transform: uppercase;
       text-decoration: underline;
       text-underline-offset: 2px;
@@ -83,33 +110,40 @@ export function invoiceStyles() {
       border-collapse: collapse;
       margin-top: 10px;
       table-layout: fixed;
+      font-size: 11pt;
     }
     table.items th {
-      background: #cfe6f7;
-      color: #1d3557;
+      background: #c5e4f8;
+      color: #111111;
       font-weight: 700;
-      padding: 8px 10px;
+      padding: 7px 10px;
       text-align: center;
-      border: 1px solid #b9d6ec;
+      border: 1px solid #b7d4ea;
+      font-size: 11pt;
     }
     table.items td {
-      padding: 9px 10px;
-      border: 1px solid #d5dbe3;
+      padding: 8px 10px;
+      border: 1px solid #c8d7e4;
       vertical-align: middle;
+      color: #111111;
+      font-weight: 400;
+      background: #eef6fc;
     }
     table.items td.desc { text-align: left; }
     table.items td.num, table.items th.num { text-align: right; white-space: nowrap; width: 18%; }
     table.items td.center, table.items th.center { text-align: center; width: 8%; }
     .totals {
-      width: 310px;
-      margin: 10px 0 0 auto;
+      width: 300px;
+      margin: 8px 0 0 auto;
       border-collapse: collapse;
+      font-size: 11pt;
     }
     .totals td {
-      color: #1d5fa8;
+      color: #0a3a7a;
       font-weight: 700;
-      padding: 2px 0 2px 12px;
+      padding: 1px 0 1px 12px;
       vertical-align: top;
+      font-size: 11pt;
     }
     .totals td.lab { text-align: right; width: 58%; }
     .totals td.amt { text-align: right; white-space: nowrap; }
@@ -120,31 +154,31 @@ export function invoiceStyles() {
       margin-top: 28px;
       align-items: start;
     }
-    .accept p { margin: 0 0 6px; }
+    .accept p { margin: 0 0 5px; font-size: 11pt; }
     .sign { text-align: right; }
     .sign img {
-      height: 56px;
+      height: 52px;
       width: auto;
-      max-width: 240px;
+      max-width: 230px;
       object-fit: contain;
       object-position: right bottom;
       display: block;
       margin: 0 0 4px auto;
     }
     .sign .line {
-      border-top: 2px solid #1d5fa8;
+      border-top: 2px solid #0a3a7a;
       display: inline-block;
-      min-width: 220px;
-      padding-top: 4px;
-      color: #1d5fa8;
-      font-weight: 800;
-      letter-spacing: 0.4px;
-      font-size: 11.5px;
+      min-width: 210px;
+      padding-top: 3px;
+      color: #0a3a7a;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      font-size: 11pt;
     }
-    .sign p { margin: 8px 0 0; }
+    .sign p { margin: 6px 0 0; font-size: 11pt; font-weight: 400; }
     .page-break { page-break-before: always; break-before: page; }
-    .terms h2 { font-size: 16px; margin: 0 0 12px; }
-    .terms p { margin: 0 0 8px; max-width: 640px; }
+    .terms h2 { font-size: 14pt; font-weight: 700; margin: 0 0 10px; color: #111111; }
+    .terms p { margin: 0 0 8px; max-width: 640px; font-size: 11pt; font-weight: 400; }
   `;
 }
 

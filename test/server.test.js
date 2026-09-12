@@ -103,6 +103,7 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.ok(html.includes('data:image/png;base64'));
   const page = await fetch(`${url}/`).then((res) => res.text());
   assert.ok(page.includes('<style>'));
-  assert.ok(page.includes('.topbar'));
+  assert.ok(page.includes('.sidebar'));
+  assert.ok(page.includes('Carlito'));
   assert.ok(page.includes('STANDALONE'));
 });

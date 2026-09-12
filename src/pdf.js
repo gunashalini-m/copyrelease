@@ -43,6 +43,7 @@ export async function renderInvoicePdf(invoice) {
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.evaluate(() => document.fonts.ready);
     return await page.pdf({
       format: 'A4',
       printBackground: true,
