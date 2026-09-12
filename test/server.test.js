@@ -94,4 +94,12 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   const pdf = Buffer.from(await pdfRes.arrayBuffer());
   assert.ok(pdf.subarray(0, 4).toString() === '%PDF');
   assert.ok(pdf.length > 1000);
+
+  const fileRes = await fetch(`${url}/download`);
+  assert.equal(fileRes.status, 200);
+  assert.match(fileRes.headers.get('content-disposition') || '', /Introis-Invoice-Generator.html/);
+  const html = await fileRes.text();
+  assert.ok(html.includes('STANDALONE'));
+  assert.ok(html.includes('data:image/png;base64'));
+  assert.ok(html.includes('Create invoice'));
 });

@@ -48,6 +48,8 @@ function formatDateDisplay(isoDate) {
   if (!day) return isoDate;
   return `${day}/${month}/${year}`;
 }
+
+function invoiceNumber(sequence = Number(document.getElementById('sequence').value)) {
   const pad = settings?.sequencePadding ?? 3;
   const width = Math.max(pad, String(sequence).length);
   return `${settings?.invoicePrefix ?? 'INTSINV'}${String(sequence).padStart(width, '0')}`;
@@ -237,7 +239,7 @@ function previewSrcDoc(invoice) {
     .tot{width:280px;margin-left:auto}
     .tot div{display:flex;justify-content:space-between}
   </style></head><body>
-    <div class="head"><img class="logo" src="/assets/logo.png"><div style="text-align:right"><h1>INVOICE</h1><div>${escapeHtml(invoice.paymentKind)}</div></div></div>
+    <div class="head"><img class="logo" src="${window.__ASSETS?.logo || '/assets/logo.png'}"><div style="text-align:right"><h1>INVOICE</h1><div>${escapeHtml(invoice.paymentKind)}</div></div></div>
     <div class="grid">
       <div><strong>From</strong><br>${escapeHtml(invoice.company.name)}<br>${address(invoice.company.address)}<br>GSTIN: ${escapeHtml(invoice.company.gstin)}</div>
       <div><strong>Bill To</strong><br>${escapeHtml(invoice.client.contactName)}<br>${escapeHtml(invoice.client.companyName)}<br>${address(invoice.client.address)}<br>GSTIN: ${escapeHtml(invoice.client.gstin)}</div>
@@ -260,6 +262,109 @@ function previewSrcDoc(invoice) {
   </body></html>`;
 }
 
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function openPrintableInvoice(invoice) {
+  const logo = window.__ASSETS?.logo || '/assets/logo.png';
+  const signature = window.__ASSETS?.signature || '/assets/signature.png';
+  const rows = invoice.lineItems
+    .map(
+      (item, index) =>
+        `<tr><td style="text-align:center">${index + 1}</td><td>${escapeHtml(item.description).replaceAll('\n', '<br>')}</td><td style="text-align:right">${formatInr(item.unitPrice)}</td><td style="text-align:right">${formatInr(item.lineTotal)}</td></tr>`,
+    )
+    .join('');
+  const address = (value) => escapeHtml(value).replaceAll('\n', '<br>');
+  const html = `<!DOCTYPE html><html><head><title>${escapeHtml(invoice.number)}</title>
+    <style>
+      @page { size: A4; margin: 12mm; }
+      body{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:12px}
+      .head{display:flex;justify-content:space-between;align-items:flex-start}
+      img.logo{height:48px} h1{color:#1b2c6b;margin:0}
+      .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0}
+      table{width:100%;border-collapse:collapse} th{background:#cfe6f7;text-align:left}
+      th,td{border:1px solid #d5dbe3;padding:7px}
+      .blue{color:#1d5fa8;font-weight:700}
+      .tot{width:280px;margin-left:auto}
+      .tot div{display:flex;justify-content:space-between}
+      .sign{text-align:right} .sign img{height:34px}
+      .page-break{page-break-before:always}
+    </style></head><body>
+    <div class="head"><img class="logo" src="${logo}"><div style="text-align:right"><h1>INVOICE</h1><div>${escapeHtml(invoice.paymentKind)}</div></div></div>
+    <div class="grid">
+      <div><strong>From</strong><br>${escapeHtml(invoice.company.name)}<br>${address(invoice.company.address)}<br>Phone: ${escapeHtml(invoice.company.phone)}<br>Email: ${escapeHtml(invoice.company.email)}<br>GSTIN: ${escapeHtml(invoice.company.gstin)}</div>
+      <div><strong>Bill To</strong><br>${escapeHtml(invoice.client.contactName)}<br>${escapeHtml(invoice.client.companyName)}<br>${address(invoice.client.address)}<br>Email: ${escapeHtml(invoice.client.email)}<br>GSTIN of Recipient: ${escapeHtml(invoice.client.gstin)}</div>
+    </div>
+    <div class="grid">
+      <div><strong>Invoice Number:</strong> ${escapeHtml(invoice.number)}<br><strong>Invoice Date:</strong> ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</div>
+      <div><strong class="blue">BANK DETAILS</strong><br>Bank Name: ${escapeHtml(invoice.bank.bankName)}<br>A/C Holder Name: ${escapeHtml(invoice.bank.holderName)}<br>Account number: ${escapeHtml(invoice.bank.accountNumber)}<br>IFSC: ${escapeHtml(invoice.bank.ifsc)}<br>Account Type: ${escapeHtml(invoice.bank.accountType)}<br>Branch: ${escapeHtml(invoice.bank.branch)}</div>
+    </div>
+    <p class="blue">PROJECT OVERVIEW</p>
+    <p><strong>Project Name:</strong> ${escapeHtml(invoice.projectName)}<br><strong>Duration of Project Completion:</strong> ${escapeHtml(invoice.duration)}</p>
+    <table><thead><tr><th>S.No</th><th>Description</th><th>Unit Price</th><th>Line Total</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="tot blue">
+      <div><span>Total Without Taxes</span><span>${formatInr(invoice.subtotal)}</span></div>
+      <div><span>SGST @9%</span><span>${formatInr(invoice.sgst)}</span></div>
+      <div><span>CGST @9%</span><span>${formatInr(invoice.cgst)}</span></div>
+      <div><span>Total Invoice Value</span><span>${formatInr(invoice.total)}</span></div>
+    </div>
+    <div class="grid" style="margin-top:28px">
+      <div><p class="blue">CLIENT ACCEPTANCE</p><p>Client Name:</p><p>Date:</p><p>Signature:</p></div>
+      <div class="sign"><img src="${signature}" alt=""><div class="blue">AUTHORISED SIGNATURE</div><p>Name: ${escapeHtml(invoice.signatory.name)}<br>Designation: ${escapeHtml(invoice.signatory.designation)}<br>Date: ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</p></div>
+    </div>
+    <div class="page-break"><h2>Terms and Conditions</h2>${(invoice.terms || []).map((term) => `<p>${escapeHtml(term)}</p>`).join('')}</div>
+  </body></html>`;
+  const popup = window.open('', '_blank');
+  if (!popup) {
+    throw new Error('Allow pop-ups to print or save the invoice as a PDF');
+  }
+  popup.document.open();
+  popup.document.write(html);
+  popup.document.close();
+  popup.focus();
+  popup.print();
+}
+
+async function consumePdfResponse(response, filename) {
+  const type = response.headers.get('content-type') || '';
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Could not build PDF');
+  }
+  if (type.includes('application/json')) {
+    const data = await response.json();
+    if (data.print && data.invoice) {
+      openPrintableInvoice(data.invoice);
+      return;
+    }
+    throw new Error(data.error || 'Could not build PDF');
+  }
+  triggerDownload(await response.blob(), filename);
+}
+
+async function downloadCurrentPdf() {
+  const preview = await api('/api/invoices/preview', { method: 'POST', body: formPayload() });
+  const response = await fetch('/api/invoices/preview.pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(formPayload()),
+  });
+  await consumePdfResponse(response, `${preview.number}.pdf`);
+}
+
+async function downloadSavedPdf(id, name) {
+  const response = await fetch(`/api/invoices/${id}/pdf`);
+  await consumePdfResponse(response, `${name || 'invoice'}.pdf`);
+}
+
 async function loadInvoices() {
   const invoices = await api('/api/invoices');
   document.getElementById('invoice-rows').innerHTML = invoices
@@ -272,7 +377,7 @@ async function loadInvoices() {
           <td>${invoice.bank.accountType}</td>
           <td>${formatInr(invoice.total)}</td>
           <td>
-            <a href="/api/invoices/${invoice.id}/pdf" target="_blank">PDF</a>
+            <button type="button" class="ghost" data-pdf="${invoice.id}" data-name="${invoice.number}">Download PDF</button>
             · <button type="button" class="ghost" data-reuse="${invoice.id}">Reuse</button>
           </td>
         </tr>`,
@@ -350,19 +455,12 @@ document.getElementById('invoice-form').addEventListener('submit', async (event)
   }
 });
 
-document.getElementById('preview-pdf').addEventListener('click', async () => {
-  const response = await fetch('/api/invoices/preview.pdf', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(formPayload()),
-  });
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    toast(data.error || 'Could not build PDF');
-    return;
+document.getElementById('download-pdf').addEventListener('click', async () => {
+  try {
+    await downloadCurrentPdf();
+  } catch (error) {
+    toast(error.message);
   }
-  const blob = await response.blob();
-  window.open(URL.createObjectURL(blob), '_blank');
 });
 
 document.getElementById('client-form').addEventListener('submit', async (event) => {
@@ -415,7 +513,16 @@ document.getElementById('client-list').addEventListener('click', async (event) =
 });
 
 document.getElementById('invoice-rows').addEventListener('click', async (event) => {
+  const pdfId = event.target.dataset.pdf;
   const id = event.target.dataset.reuse;
+  if (pdfId) {
+    try {
+      await downloadSavedPdf(pdfId, event.target.dataset.name);
+    } catch (error) {
+      toast(error.message);
+    }
+    return;
+  }
   if (!id) {
     return;
   }

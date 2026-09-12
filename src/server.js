@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { computeTotals, formatInvoiceNumber } from './money.js';
 import { renderInvoicePdf } from './pdf.js';
+import { buildStandaloneHtml } from './standalone.js';
 import { createStore } from './store.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -93,6 +94,16 @@ export function createApp({ storePath } = {}) {
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', service: 'invoice-generator' });
+  });
+
+  app.get('/download', (_req, res) => {
+    const html = buildStandaloneHtml();
+    res.setHeader('content-type', 'text/html; charset=utf-8');
+    res.setHeader(
+      'content-disposition',
+      'attachment; filename="Introis-Invoice-Generator.html"',
+    );
+    res.send(html);
   });
 
   app.get('/api/settings', (_req, res) => {
@@ -187,7 +198,10 @@ export function createApp({ storePath } = {}) {
       const invoice = buildInvoiceRecord(store, req.body ?? {});
       const pdf = Buffer.from(await renderInvoicePdf(invoice));
       res.setHeader('content-type', 'application/pdf');
-      res.setHeader('content-disposition', `inline; filename="${invoice.number}.pdf"`);
+      res.setHeader(
+        'content-disposition',
+        `attachment; filename="${invoice.number}.pdf"`,
+      );
       res.end(pdf);
     } catch (error) {
       res.status(error.status || 500).json({ error: error.message });
