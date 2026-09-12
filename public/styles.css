@@ -1,19 +1,19 @@
 @font-face {
-  font-family: Carlito;
-  src: url("fonts/Carlito-Regular.woff2") format("woff2");
+  font-family: Aptos;
+  src: local("Aptos"), local("Aptos Regular"), url("fonts/Aptos.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
 }
 @font-face {
-  font-family: Carlito;
-  src: url("fonts/Carlito-Bold.woff2") format("woff2");
+  font-family: Aptos;
+  src: local("Aptos Bold"), local("Aptos-Bold"), url("fonts/Aptos-Bold.woff2") format("woff2");
   font-weight: 700;
   font-style: normal;
 }
 
 :root {
   --navy: #202054;
-  --heading-blue: #0a3a7a;
+  --heading-blue: #002060;
   --gold: #a87830;
   --ink: #111111;
   --muted: #666666;
@@ -28,7 +28,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
 body {
-  font-family: Calibri, Carlito, Arial, Helvetica, sans-serif;
+  font-family: Aptos, "Aptos Display", Calibri, Arial, Helvetica, sans-serif;
   font-size: 11pt;
   background: var(--bg);
   color: var(--ink);

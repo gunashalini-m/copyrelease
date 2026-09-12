@@ -190,15 +190,15 @@ export function buildStandaloneHtml() {
     logo: dataUri('public/assets/logo.png', 'image/png'),
     signature: dataUri('public/assets/signature.png', 'image/png'),
     fonts: {
-      regular: dataUri('public/fonts/Carlito-Regular.woff2', 'font/woff2'),
-      bold: dataUri('public/fonts/Carlito-Bold.woff2', 'font/woff2'),
+      regular: dataUri('public/fonts/Aptos.woff2', 'font/woff2'),
+      bold: dataUri('public/fonts/Aptos-Bold.woff2', 'font/woff2'),
     },
   };
   const seed = { settings: defaultSettings, clients: defaultClients };
 
   const inlinedCss = styles
-    .replaceAll('url("fonts/Carlito-Regular.woff2")', `url("${assets.fonts.regular}")`)
-    .replaceAll('url("fonts/Carlito-Bold.woff2")', `url("${assets.fonts.bold}")`);
+    .replaceAll('url("fonts/Aptos.woff2")', `url("${assets.fonts.regular}")`)
+    .replaceAll('url("fonts/Aptos-Bold.woff2")', `url("${assets.fonts.bold}")`);
   html = html.replace('<link rel="stylesheet" href="styles.css">', `<style>${inlinedCss}</style>`);
   html = html.replace('src="assets/logo.png"', `src="${assets.logo}"`);
   const safeApp = appJs.replace(/<\/script/gi, '<\\/script');

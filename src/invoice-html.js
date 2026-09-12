@@ -1,23 +1,55 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { formatDateDisplay, formatInr, formatInvoiceNumber } from './money.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const HEADING_BLUE = '#002060';
+const INVOICE_FONT = 'Aptos, "Aptos Display", Calibri, Arial, Helvetica, sans-serif';
+
+function firstExisting(paths) {
+  return paths.find((filePath) => existsSync(filePath));
+}
+
+function fontDataUri(filePath) {
+  const bytes = readFileSync(filePath);
+  const ext = path.extname(filePath).toLowerCase();
+  const mime = ext === '.woff2' ? 'font/woff2' : 'font/ttf';
+  const format = ext === '.woff2' ? 'woff2' : 'truetype';
+  return { uri: `data:${mime};base64,${bytes.toString('base64')}`, format };
+}
 
 function fontFaceCss() {
-  const regular = readFileSync(path.join(root, 'public/fonts/Carlito-Regular.woff2')).toString('base64');
-  const bold = readFileSync(path.join(root, 'public/fonts/Carlito-Bold.woff2')).toString('base64');
+  const homeFonts = path.join(os.homedir(), '.local/share/fonts');
+  const regularFile = firstExisting([
+    path.join(root, 'public/fonts/Aptos.woff2'),
+    path.join(homeFonts, 'Aptos.ttf'),
+    path.join(root, 'public/fonts/Aptos.ttf'),
+  ]);
+  const boldFile = firstExisting([
+    path.join(root, 'public/fonts/Aptos-Bold.woff2'),
+    path.join(homeFonts, 'Aptos-Bold.ttf'),
+    path.join(root, 'public/fonts/Aptos-Bold.ttf'),
+  ]);
+  const regular = regularFile ? fontDataUri(regularFile) : null;
+  const bold = boldFile ? fontDataUri(boldFile) : null;
+  const regularSrc = regular
+    ? `local("Aptos"), local("Aptos Regular"), url(${regular.uri}) format("${regular.format}")`
+    : `local("Aptos"), local("Aptos Regular")`;
+  const boldSrc = bold
+    ? `local("Aptos Bold"), local("Aptos-Bold"), url(${bold.uri}) format("${bold.format}")`
+    : `local("Aptos Bold"), local("Aptos-Bold")`;
   return `
     @font-face {
-      font-family: Carlito;
-      src: url(data:font/woff2;base64,${regular}) format('woff2');
+      font-family: Aptos;
+      src: ${regularSrc};
       font-weight: 400;
       font-style: normal;
     }
     @font-face {
-      font-family: Carlito;
-      src: url(data:font/woff2;base64,${bold}) format('woff2');
+      font-family: Aptos;
+      src: ${boldSrc};
       font-weight: 700;
       font-style: normal;
     }
@@ -44,7 +76,7 @@ export function invoiceStyles() {
       margin: 0;
       padding: 0;
       color: #111111;
-      font-family: Calibri, Carlito, Arial, Helvetica, sans-serif;
+      font-family: ${INVOICE_FONT};
       font-size: 11pt;
       line-height: 1.35;
     }
@@ -66,7 +98,7 @@ export function invoiceStyles() {
     .invoice-title {
       margin: 0;
       font-size: 22pt;
-      color: #0a3a7a;
+      color: ${HEADING_BLUE};
       font-weight: 700;
       letter-spacing: 0.4px;
       line-height: 1.1;
@@ -85,19 +117,22 @@ export function invoiceStyles() {
       align-items: start;
       margin-bottom: 14px;
     }
-    .label { font-weight: 700; font-size: 11pt; margin: 0 0 4px; color: #111111; }
-    .block p { margin: 0; font-size: 11pt; font-weight: 400; }
-    .block p strong { font-weight: 700; }
-    .meta-row { margin: 0 0 2px; font-size: 11pt; }
+    .label,
     .bank-title {
-      font-weight: 700;
-      margin: 0 0 4px;
-      text-transform: uppercase;
+      font-weight: 700 !important;
       font-size: 11pt;
+      margin: 0 0 4px;
       color: #111111;
     }
+    .block p { margin: 0; font-size: 11pt; font-weight: 400; }
+    .block p.label,
+    .block p.bank-title {
+      font-weight: 700;
+    }
+    .block p strong, .block p b { font-weight: 700; }
+    .meta-row { margin: 0 0 2px; font-size: 11pt; }
     .section-title {
-      color: #0a3a7a;
+      color: ${HEADING_BLUE};
       font-weight: 700;
       font-size: 11pt;
       margin: 16px 0 6px;
@@ -139,7 +174,7 @@ export function invoiceStyles() {
       font-size: 11pt;
     }
     .totals td {
-      color: #0a3a7a;
+      color: ${HEADING_BLUE};
       font-weight: 700;
       padding: 1px 0 1px 12px;
       vertical-align: top;
@@ -166,11 +201,11 @@ export function invoiceStyles() {
       margin: 0 0 4px auto;
     }
     .sign .line {
-      border-top: 2px solid #0a3a7a;
+      border-top: 2px solid ${HEADING_BLUE};
       display: inline-block;
       min-width: 210px;
       padding-top: 3px;
-      color: #0a3a7a;
+      color: ${HEADING_BLUE};
       font-weight: 700;
       letter-spacing: 0.3px;
       font-size: 11pt;
@@ -212,7 +247,7 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
   </div>
   <div class="two-col">
     <div class="block">
-      <p class="label">From</p>
+      <p class="label"><b>From</b></p>
       <p><strong>${escapeHtml(invoice.company.name)}</strong></p>
       <p>${multiline(invoice.company.address)}</p>
       <p>Phone: ${escapeHtml(invoice.company.phone)}</p>
@@ -220,7 +255,7 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
       <p>GSTIN: ${escapeHtml(invoice.company.gstin)}</p>
     </div>
     <div class="block">
-      <p class="label">Bill To</p>
+      <p class="label"><b>Bill To</b></p>
       <p><strong>${escapeHtml(invoice.client.contactName)}</strong></p>
       <p>${escapeHtml(invoice.client.companyName)}</p>
       <p>${multiline(invoice.client.address)}</p>
@@ -234,7 +269,7 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
       <p class="meta-row"><strong>Invoice Date:</strong> ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</p>
     </div>
     <div class="block">
-      <p class="bank-title">BANK DETAILS</p>
+      <p class="bank-title"><b>Bank Details</b></p>
       <p>Bank Name: ${escapeHtml(invoice.bank.bankName)}</p>
       <p>A/C Holder Name: ${escapeHtml(invoice.bank.holderName)}</p>
       <p>Account number: ${escapeHtml(invoice.bank.accountNumber)}</p>

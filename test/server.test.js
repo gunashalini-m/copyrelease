@@ -104,6 +104,10 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   const page = await fetch(`${url}/`).then((res) => res.text());
   assert.ok(page.includes('<style>'));
   assert.ok(page.includes('.sidebar'));
-  assert.ok(page.includes('Carlito'));
+  assert.ok(page.includes('Aptos'));
+  assert.ok(page.includes('#002060'));
+  assert.ok(page.includes('<b>From</b>'));
+  assert.ok(page.includes('<b>Bill To</b>'));
+  assert.ok(page.includes('<b>Bank Details</b>'));
   assert.ok(page.includes('STANDALONE'));
 });
