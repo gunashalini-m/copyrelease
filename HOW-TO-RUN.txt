@@ -1,0 +1,18 @@
+Introis Invoice Generator
+=========================
+
+Double-click this file (full UI, no npm):
+  index.html
+
+It is also saved as Introis-Invoice-Generator.html and public/index.html.
+All three are the complete app with styles built in.
+
+Visual Studio Code
+------------------
+1. File → Open Folder… (the unzipped folder)
+2. Click index.html in the left file list
+3. Right-click → Open with Live Server
+   or right-click → Reveal in Finder → double-click
+
+Do not look for a "raw" HTML form. After a double-click you should see
+a navy header, a form on the left, and an invoice preview on the right.

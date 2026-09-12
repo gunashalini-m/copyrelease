@@ -1,22 +1,48 @@
-# copyrelease
+# Introis Invoice Generator
 
-A small API for creating and copying release notes.
+Web app for creating GST invoices for Introis Technologies.
+
+## Download (no npm needed)
+
+- **Zip of this project:** https://github.com/gunashalini-m/copyrelease/archive/refs/heads/cursor/invoice-generator-16f6.zip
+- **Single file:** https://github.com/gunashalini-m/copyrelease/raw/cursor/invoice-generator-16f6/index.html
+
+Unzip, then double-click **`index.html`**. Chrome or Edge. You should see a navy header, a form on the left, and a live invoice preview on the right. If macOS blocks it: right-click → Open → Open.
+
+### Visual Studio Code
+
+1. File → Open Folder… and select the unzipped folder.
+2. Click **`index.html`** (folder root).
+3. Right-click → **Open with Live Server**, or Reveal in Finder and double-click.
+
+## Features
+
+- Sequential invoice numbers (`INTSINV099`, then `INTSINV100`, …) with a manually editable next sequence
+- Client directory: add, edit, delete, and prefill Bill To
+- Current or Savings bank account on each invoice (full account records in Settings)
+- CGST 9% + SGST 9%
+- Saved invoice history and PDF download matching the organisation layout
+- **Download app** in the header: a single HTML file you can save and open later without Node. Clients, settings, and invoices are stored in that browser. Use **Download PDF** (or Print → Save as PDF in the offline file) to keep a copy of each invoice.
+
+## Downloadable file
+
+1. Start the app once (`npm start`) and click **Download app**, or open `/download`.
+2. Save `Introis-Invoice-Generator.html` anywhere (Desktop, shared drive, email it).
+3. Open that file in Chrome or Edge. No install and no terminal after that.
+4. Click **Download PDF** to save an invoice. In the offline file, the browser print dialog appears — choose **Save as PDF**.
+
+Data stays in the browser that opened the file (localStorage). Copy the HTML file to another computer if you want a fresh copy; it will not automatically sync.
 
 ## Development
 
 ```bash
 npm ci
-npm run dev
+npm start
 ```
 
-The server listens on port 3000 by default.
+Open http://localhost:3000
 
-## API
-
-- `GET /health` — health check
-- `GET /releases` — list releases
-- `POST /releases` — create a release (`{ "title": "...", "body": "..." }`)
-- `POST /releases/:id/copy` — copy an existing release
+Data is stored in `data/store.json` (created on first run). Company, bank, numbering, and terms defaults come from the sample invoice; update the savings account number under Settings.
 
 ## Tests
 
