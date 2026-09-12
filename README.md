@@ -9,6 +9,13 @@ Web app for creating GST invoices for Introis Technologies.
 
 On a Mac, unzip, then double-click `Introis-Invoice-Generator.html`. If macOS blocks it, right-click → Open → Open.
 
+### Visual Studio Code
+
+1. File → Open Folder… and select the unzipped folder.
+2. Open **Introis-Invoice-Generator.html** at the top of the folder (not `public/index.html`).
+3. Right-click that file → **Open with Live Server**.
+   Install the **Live Server** extension if you do not see that command.
+
 ## Features
 
 - Sequential invoice numbers (`INTSINV099`, then `INTSINV100`, …) with a manually editable next sequence

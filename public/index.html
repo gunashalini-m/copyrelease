@@ -4,12 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Introis Invoice Generator</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div id="wrong-file" class="wrong-file" hidden>
+    You opened the source page <code>public/index.html</code>, so the layout cannot load.
+    Close this tab and open <strong>Introis-Invoice-Generator.html</strong> in the parent folder.
+    In VS Code: File → Open Folder, then right-click
+    <strong>Introis-Invoice-Generator.html</strong> → Open with Live Server.
+  </div>
   <header class="topbar">
     <div class="brand">
-      <img src="/assets/logo.png" alt="Introis Technologies">
+      <img src="assets/logo.png" alt="Introis Technologies">
       <div>
         <strong>Invoice Generator</strong>
         <span>Introis Technologies</span>
@@ -194,6 +200,12 @@
   </main>
 
   <div id="toast" hidden></div>
-  <script type="module" src="/app.js"></script>
+  <script type="module" src="app.js"></script>
+  <script>
+    if (location.protocol === 'file:' && !window.STANDALONE) {
+      var warning = document.getElementById('wrong-file');
+      if (warning) warning.hidden = false;
+    }
+  </script>
 </body>
 </html>

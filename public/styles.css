@@ -120,6 +120,16 @@ input, select, textarea {
 .card p { margin: 0 0 8px; color: var(--muted); font-size: 13px; white-space: pre-line; }
 .data { width: 100%; border-collapse: collapse; }
 .data th, .data td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); font-size: 14px; }
+.wrong-file {
+  background: #fff3cd;
+  border: 1px solid #e6c36a;
+  color: #5c4300;
+  padding: 14px 18px;
+  margin: 12px 22px 0;
+  border-radius: 10px;
+  font-size: 15px;
+  line-height: 1.45;
+}
 #toast {
   position: fixed;
   right: 18px;

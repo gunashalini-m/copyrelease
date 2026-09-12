@@ -239,7 +239,7 @@ function previewSrcDoc(invoice) {
     .tot{width:280px;margin-left:auto}
     .tot div{display:flex;justify-content:space-between}
   </style></head><body>
-    <div class="head"><img class="logo" src="${window.__ASSETS?.logo || '/assets/logo.png'}"><div style="text-align:right"><h1>INVOICE</h1><div>${escapeHtml(invoice.paymentKind)}</div></div></div>
+    <div class="head"><img class="logo" src="${window.__ASSETS?.logo || 'assets/logo.png'}"><div style="text-align:right"><h1>INVOICE</h1><div>${escapeHtml(invoice.paymentKind)}</div></div></div>
     <div class="grid">
       <div><strong>From</strong><br>${escapeHtml(invoice.company.name)}<br>${address(invoice.company.address)}<br>GSTIN: ${escapeHtml(invoice.company.gstin)}</div>
       <div><strong>Bill To</strong><br>${escapeHtml(invoice.client.contactName)}<br>${escapeHtml(invoice.client.companyName)}<br>${address(invoice.client.address)}<br>GSTIN: ${escapeHtml(invoice.client.gstin)}</div>
@@ -274,8 +274,8 @@ function triggerDownload(blob, filename) {
 }
 
 function openPrintableInvoice(invoice) {
-  const logo = window.__ASSETS?.logo || '/assets/logo.png';
-  const signature = window.__ASSETS?.signature || '/assets/signature.png';
+  const logo = window.__ASSETS?.logo || 'assets/logo.png';
+  const signature = window.__ASSETS?.signature || 'assets/signature.png';
   const rows = invoice.lineItems
     .map(
       (item, index) =>
@@ -575,6 +575,11 @@ document.getElementById('settings-form').addEventListener('submit', async (event
 });
 
 async function init() {
+  if (!window.STANDALONE && location.protocol === 'file:') {
+    const warning = document.getElementById('wrong-file');
+    if (warning) warning.hidden = false;
+    return;
+  }
   settings = await api('/api/settings');
   clients = await api('/api/clients');
   fillSettingsForm();

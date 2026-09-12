@@ -1,13 +1,24 @@
 Introis Invoice Generator
 =========================
 
-You do NOT need npm.
+Do NOT open public/index.html. That is source, not the app.
 
-On a Mac:
-  1. Unzip the download
-  2. Double-click Introis-Invoice-Generator.html
-     or Open-Invoice-Generator.command
-  3. If macOS blocks it: right-click → Open → Open
+Open this file (in the folder root):
+  Introis-Invoice-Generator.html
 
-The full Node app (npm start) is optional. Install Node.js LTS from
-https://nodejs.org first, then run npm ci and npm start from this folder.
+Using Visual Studio Code
+------------------------
+1. File → Open Folder…
+2. Choose the unzipped folder
+   (copyrelease-cursor-invoice-generator-16f6)
+3. In the left file list, click Introis-Invoice-Generator.html
+   (top of the folder, not inside public/)
+4. Right-click that file → Open with Live Server
+   If you do not see that: Extensions, install "Live Server" by Ritwick Dey,
+   then right-click again.
+5. A browser tab should open with the full styled invoice form.
+
+Or right-click Introis-Invoice-Generator.html → Reveal in Finder →
+double-click to open in Chrome.
+
+You do not need npm for this.

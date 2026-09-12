@@ -192,8 +192,8 @@ export function buildStandaloneHtml() {
   };
   const seed = { settings: defaultSettings, clients: defaultClients };
 
-  html = html.replace('<link rel="stylesheet" href="/styles.css">', `<style>${styles}</style>`);
-  html = html.replace('src="/assets/logo.png"', `src="${assets.logo}"`);
+  html = html.replace('<link rel="stylesheet" href="styles.css">', `<style>${styles}</style>`);
+  html = html.replace('src="assets/logo.png"', `src="${assets.logo}"`);
   html = html.replace(
     '<a class="download-app" href="/download">Download app</a>',
     '<span class="download-app" title="You are using the downloaded app">Offline file</span>',
@@ -201,7 +201,7 @@ export function buildStandaloneHtml() {
   const safeApp = appJs.replace(/<\/script/gi, '<\\/script');
   const shim = offlineFetchScript(seed, assets).replace(/<\/script/gi, '<\\/script');
   html = html.replace(
-    '<script type="module" src="/app.js"></script>',
+    '<script type="module" src="app.js"></script>',
     `<script>${shim}</script>\n<script>${safeApp}</script>`,
   );
   return html;
