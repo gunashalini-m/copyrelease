@@ -1,55 +1,97 @@
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
-import { once } from 'node:events';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { test } from 'node:test';
+import { createApp } from '../src/server.js';
 
-const PORT = 3456;
-
-async function waitForHealth(url, attempts = 30) {
-  for (let i = 0; i < attempts; i += 1) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) {
-        return;
-      }
-    } catch {
-      // retry
-    }
-    await new Promise((resolve) => setTimeout(resolve, 200));
-  }
-  throw new Error(`Server did not become healthy at ${url}`);
+function listen(app) {
+  return new Promise((resolve) => {
+    const server = app.listen(0, '127.0.0.1', () => {
+      const { port } = server.address();
+      resolve({
+        server,
+        url: `http://127.0.0.1:${port}`,
+      });
+    });
+  });
 }
 
-test('release create and copy flow', async () => {
-  const server = spawn('node', ['src/server.js'], {
-    env: { ...process.env, PORT: String(PORT) },
-    stdio: 'pipe',
+test('health, numbering, clients, and invoice snapshots', async (t) => {
+  const storePath = path.join(mkdtempSync(path.join(tmpdir(), 'inv-')), 'store.json');
+  const { server, url } = await listen(createApp({ storePath }));
+  t.after(() => new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve()))));
+
+  const health = await fetch(`${url}/health`).then((res) => res.json());
+  assert.equal(health.service, 'invoice-generator');
+
+  const settings = await fetch(`${url}/api/settings`).then((res) => res.json());
+  assert.equal(settings.invoicePrefix, 'INTSINV');
+  assert.equal(settings.nextSequence, 99);
+
+  await fetch(`${url}/api/settings`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ nextSequence: 105 }),
   });
 
-  try {
-    await waitForHealth(`http://127.0.0.1:${PORT}/health`);
+  const clients = await fetch(`${url}/api/clients`).then((res) => res.json());
+  assert.equal(clients[0].companyName, 'Kovai Heart Foundation (P) LTD');
 
-    const createResponse = await fetch(`http://127.0.0.1:${PORT}/releases`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ title: 'v1.0.0', body: 'Initial release notes' }),
-    });
+  const createdClient = await fetch(`${url}/api/clients`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ contactName: 'Test Buyer', companyName: 'Test Co' }),
+  }).then(async (res) => {
+    assert.equal(res.status, 201);
+    return res.json();
+  });
 
-    assert.equal(createResponse.status, 201);
-    const created = await createResponse.json();
-    assert.equal(created.title, 'v1.0.0');
+  const invoiceRes = await fetch(`${url}/api/invoices`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      accountType: 'current',
+      projectName: 'Monthly retainer',
+      duration: 'May 2026',
+      client: createdClient,
+      lineItems: [{ description: 'Service charges', quantity: 1, unitPrice: 1000 }],
+    }),
+  });
+  assert.equal(invoiceRes.status, 201);
+  const invoice = await invoiceRes.json();
+  assert.equal(invoice.number, 'INTSINV105');
+  assert.equal(invoice.bank.accountType, 'Current');
+  assert.equal(invoice.bank.accountNumber, '50200076255606');
+  assert.equal(invoice.sgst, 90);
+  assert.equal(invoice.total, 1180);
 
-    const copyResponse = await fetch(`http://127.0.0.1:${PORT}/releases/${created.id}/copy`, {
-      method: 'POST',
-    });
+  const after = await fetch(`${url}/api/settings`).then((res) => res.json());
+  assert.equal(after.nextSequence, 106);
 
-    assert.equal(copyResponse.status, 201);
-    const copied = await copyResponse.json();
-    assert.equal(copied.title, 'v1.0.0 (copy)');
-    assert.equal(copied.copiedFrom, created.id);
-    assert.equal(copied.body, created.body);
-  } finally {
-    server.kill();
-    await once(server, 'exit');
-  }
+  const second = await fetch(`${url}/api/invoices`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      accountType: 'savings',
+      sequence: 200,
+      projectName: 'Ads',
+      duration: 'June 2026',
+      client: createdClient,
+      lineItems: [{ description: 'Ads', quantity: 2, unitPrice: 500 }],
+    }),
+  }).then((res) => res.json());
+  assert.equal(second.number, 'INTSINV200');
+  assert.equal(second.bank.accountType, 'Savings');
+  assert.equal(second.lineItems[0].lineTotal, 1000);
+
+  const jumped = await fetch(`${url}/api/settings`).then((res) => res.json());
+  assert.equal(jumped.nextSequence, 201);
+
+  const pdfRes = await fetch(`${url}/api/invoices/${invoice.id}/pdf`);
+  assert.equal(pdfRes.status, 200);
+  assert.ok(pdfRes.headers.get('content-type')?.startsWith('application/pdf'));
+  const pdf = Buffer.from(await pdfRes.arrayBuffer());
+  assert.ok(pdf.subarray(0, 4).toString() === '%PDF');
+  assert.ok(pdf.length > 1000);
 });

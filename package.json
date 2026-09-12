@@ -1,18 +1,19 @@
 {
-  "name": "copyrelease",
+  "name": "introis-invoice-generator",
   "version": "0.1.0",
-  "description": "Copy and manage release notes",
+  "description": "Invoice generator for Introis Technologies",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
     "dev": "node src/server.js",
     "start": "node src/server.js",
-    "test": "node --test test/server.test.js"
+    "test": "node --test test/*.test.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "puppeteer-core": "^24.2.0"
   }
 }
