@@ -189,7 +189,13 @@ export function invoiceStyles() {
       margin-top: 28px;
       align-items: start;
     }
-    .accept p { margin: 0 0 5px; font-size: 11pt; }
+    .accept .section-title { margin: 0 0 20px; }
+    .accept-field {
+      margin: 0 0 28px;
+      font-size: 11pt;
+      min-height: 1.25em;
+    }
+    .accept-field:last-child { margin-bottom: 0; }
     .sign { text-align: right; }
     .sign img {
       height: 52px;
@@ -300,10 +306,10 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
   </table>
   <div class="footer-grid">
     <div class="accept">
-      <p class="section-title" style="margin-top:0">Client Acceptance</p>
-      <p>Client Name:</p>
-      <p>Date:</p>
-      <p>Signature:</p>
+      <p class="section-title">Client Acceptance</p>
+      <p class="accept-field">Client Name:</p>
+      <p class="accept-field">Date:</p>
+      <p class="accept-field">Signature:</p>
     </div>
     <div class="sign">
       <img src="${signatureDataUri}" alt="Authorised signature">

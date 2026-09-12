@@ -109,5 +109,6 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.ok(page.includes('<b>From</b>'));
   assert.ok(page.includes('<b>Bill To</b>'));
   assert.ok(page.includes('<b>Bank Details</b>'));
+  assert.ok(page.includes('accept-field'));
   assert.ok(page.includes('STANDALONE'));
 });

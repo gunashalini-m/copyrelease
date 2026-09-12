@@ -254,6 +254,9 @@ function invoiceDocumentHtml(invoice) {
       .line{border-top:2px solid #002060;display:inline-block;min-width:210px;padding-top:3px;color:#002060;font-weight:700;font-size:11pt}
       .page-break{page-break-before:always}
       .heading{font-weight:700;font-size:11pt;margin:0 0 4px}
+      .accept .blue{margin:0 0 20px}
+      .accept-field{margin:0 0 28px;font-size:11pt;min-height:1.25em}
+      .accept-field:last-child{margin-bottom:0}
       p, td { font-size: 11pt; }
     </style></head><body>
     <div class="head"><img class="logo" src="${logo}" alt="Introis Technologies"><div style="text-align:right"><h1>INVOICE</h1><div class="kind">${escapeHtml(invoice.paymentKind)}</div></div></div>
@@ -275,7 +278,7 @@ function invoiceDocumentHtml(invoice) {
       <tr><td>Total Invoice<br>Value</td><td>${formatInr(invoice.total)}</td></tr>
     </table>
     <div class="grid" style="margin-top:28px">
-      <div><p class="blue">CLIENT ACCEPTANCE</p><p>Client Name:</p><p>Date:</p><p>Signature:</p></div>
+      <div class="accept"><p class="blue">CLIENT ACCEPTANCE</p><p class="accept-field">Client Name:</p><p class="accept-field">Date:</p><p class="accept-field">Signature:</p></div>
       <div class="sign"><img src="${signature}" alt="Authorised signature"><div class="line">AUTHORISED SIGNATURE</div><p>Name: ${escapeHtml(invoice.signatory.name)}<br>Designation: ${escapeHtml(invoice.signatory.designation)}<br>Date: ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</p></div>
     </div>
     <div class="page-break"><h2>Terms and Conditions</h2>${(invoice.terms || []).map((term) => `<p>${escapeHtml(term)}</p>`).join('')}</div>
