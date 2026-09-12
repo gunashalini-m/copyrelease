@@ -1,58 +1,27 @@
 import express from 'express';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const app = express();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(__dirname, '..');
 const port = Number(process.env.PORT) || 3000;
 
-app.use(express.json());
-
-const releases = new Map();
-let nextId = 1;
+const app = express();
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'copyrelease' });
+  res.json({ status: 'ok', service: 'servicenow-itsm-lab' });
 });
 
-app.get('/releases', (_req, res) => {
-  res.json(Array.from(releases.values()));
-});
+app.use('/lib', express.static(path.join(root, 'src/lib')));
+app.use(express.static(path.join(root, 'public')));
 
-app.post('/releases', (req, res) => {
-  const { title, body } = req.body ?? {};
-
-  if (!title || !body) {
-    return res.status(400).json({ error: 'title and body are required' });
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/lib')) {
+    return next();
   }
-
-  const release = {
-    id: nextId++,
-    title,
-    body,
-    createdAt: new Date().toISOString(),
-  };
-
-  releases.set(release.id, release);
-  res.status(201).json(release);
-});
-
-app.post('/releases/:id/copy', (req, res) => {
-  const source = releases.get(Number(req.params.id));
-
-  if (!source) {
-    return res.status(404).json({ error: 'release not found' });
-  }
-
-  const copy = {
-    id: nextId++,
-    title: `${source.title} (copy)`,
-    body: source.body,
-    copiedFrom: source.id,
-    createdAt: new Date().toISOString(),
-  };
-
-  releases.set(copy.id, copy);
-  res.status(201).json(copy);
+  res.sendFile(path.join(root, 'public/index.html'));
 });
 
 app.listen(port, '0.0.0.0', () => {
-  console.log(`copyrelease listening on http://0.0.0.0:${port}`);
+  console.log(`ServiceNow ITSM Lab listening on http://0.0.0.0:${port}`);
 });

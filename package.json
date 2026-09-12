@@ -1,13 +1,14 @@
 {
-  "name": "copyrelease",
-  "version": "0.1.0",
-  "description": "Copy and manage release notes",
+  "name": "servicenow-itsm-lab",
+  "version": "1.0.0",
+  "description": "ServiceNow ITSM coding simulator with API autocomplete and fast grading",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
     "dev": "node src/server.js",
     "start": "node src/server.js",
-    "test": "node --test test/server.test.js"
+    "build:standalone": "node scripts/build-standalone.mjs",
+    "test": "node scripts/build-standalone.mjs && node --test test/*.test.js"
   },
   "engines": {
     "node": ">=20"

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ServiceNow ITSM Script Lab</title>
+    <link rel="stylesheet" href="/css/app.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="logo">SN</div>
+          <div>
+            <strong>ITSM Script Lab</strong>
+            <p>Practice · Autocomplete · Instant grade</p>
+            <p><a class="dl" href="/servicenow-itsm-lab.html" download="servicenow-itsm-lab.html">Download HTML file</a></p>
+          </div>
+        </div>
+        <div id="topic-nav" class="topic-nav"></div>
+      </aside>
+      <section class="mid">
+        <header class="mid-head">
+          <p id="blurb" class="muted"></p>
+          <p id="progress-label" class="progress"></p>
+        </header>
+        <div id="mode-toggle" class="mode-toggle">
+          <button type="button" class="btn ghost active" data-mode="code">Code</button>
+          <button type="button" class="btn ghost" data-mode="theory">Theory</button>
+        </div>
+        <div id="question-list" class="question-list"></div>
+      </section>
+      <main class="main">
+        <header class="main-head">
+          <div>
+            <p id="crumb" class="crumb"></p>
+            <h1 id="q-title"></h1>
+          </div>
+          <div class="actions">
+            <button id="next-btn" class="btn ghost" type="button">Next</button>
+            <button id="reset-btn" class="btn ghost" type="button">Reset</button>
+            <button id="reveal-btn" class="btn ghost" type="button">Show solution</button>
+            <button id="apply-btn" class="btn ghost" type="button">Copy solution into editor</button>
+            <button id="grade-btn" class="btn primary" type="button">Grade</button>
+          </div>
+        </header>
+        <p id="q-prompt" class="prompt"></p>
+        <p id="hint" class="hint" hidden></p>
+        <div id="theory-box" class="theory-box" hidden></div>
+        <div id="editor" class="editor"></div>
+        <section id="grade-results" class="grade-box"></section>
+        <section id="solution-pane" class="solution" hidden>
+          <h2>Reference solution</h2>
+          <pre id="solution-code"></pre>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/js/app.js"></script>
+  </body>
+</html>
