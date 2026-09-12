@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Introis Invoice Generator</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="assets/logo.png" alt="Introis Technologies">
+      <div>
+        <strong>Invoice Generator</strong>
+        <span>Introis Technologies</span>
+      </div>
+    </div>
+    <nav>
+      <button data-view="create" class="active">New invoice</button>
+      <button data-view="history">Invoices</button>
+      <button data-view="clients">Clients</button>
+      <button data-view="settings">Settings</button>
+      <a class="download-app" href="/download">Download app</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="view-create" class="view">
+      <div class="layout">
+        <form id="invoice-form" class="panel">
+          <div class="panel-head">
+            <h1>Create invoice</h1>
+            <p class="hint">Next number: <strong id="next-number-label"></strong></p>
+          </div>
+
+          <div class="grid-2">
+            <label>Invoice number
+              <input id="invoice-number" readonly>
+            </label>
+            <label>Sequence (editable)
+              <input id="sequence" type="number" min="1" required>
+            </label>
+            <label>Invoice date
+              <input id="invoice-date" type="date" required>
+            </label>
+            <label>Payment kind
+              <select id="payment-kind">
+                <option>CASH / CREDIT</option>
+                <option>CASH</option>
+                <option>CREDIT</option>
+              </select>
+            </label>
+            <label>Bank account
+              <select id="account-type">
+                <option value="current">Current</option>
+                <option value="savings">Savings</option>
+              </select>
+            </label>
+            <label>Client
+              <select id="client-select">
+                <option value="">Select a client</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="bank-summary" class="note"></div>
+
+          <h2>Bill to</h2>
+          <div class="grid-2">
+            <label>Contact name
+              <input id="client-contact" required>
+            </label>
+            <label>Company
+              <input id="client-company" required>
+            </label>
+            <label class="full">Address
+              <textarea id="client-address" rows="3"></textarea>
+            </label>
+            <label>Email
+              <input id="client-email" type="email">
+            </label>
+            <label>GSTIN
+              <input id="client-gstin">
+            </label>
+          </div>
+
+          <h2>Project</h2>
+          <label>Project name
+            <input id="project-name" required>
+          </label>
+          <label>Duration of project completion
+            <input id="duration" required>
+          </label>
+
+          <div class="panel-head compact">
+            <h2>Line items</h2>
+            <button type="button" id="add-item" class="secondary">Add item</button>
+          </div>
+          <div id="items"></div>
+
+          <div class="totals-card" id="totals"></div>
+
+          <div class="actions">
+            <button type="submit">Save invoice</button>
+            <button type="button" id="download-pdf" class="secondary">Download PDF</button>
+            <button type="button" id="load-sample" class="ghost">Load sample values</button>
+          </div>
+        </form>
+
+        <aside class="preview-wrap">
+          <h2>Live preview</h2>
+          <iframe id="live-preview" title="Invoice preview"></iframe>
+        </aside>
+      </div>
+    </section>
+
+    <section id="view-history" class="view hidden">
+      <div class="panel">
+        <h1>Saved invoices</h1>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Number</th>
+              <th>Date</th>
+              <th>Client</th>
+              <th>Account</th>
+              <th>Total</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="invoice-rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="view-clients" class="view hidden">
+      <div class="split">
+        <form id="client-form" class="panel">
+          <h1 id="client-form-title">Add client</h1>
+          <input type="hidden" id="client-id">
+          <label>Contact name <input id="c-contact" required></label>
+          <label>Company <input id="c-company" required></label>
+          <label>Address <textarea id="c-address" rows="3"></textarea></label>
+          <label>Email <input id="c-email" type="email"></label>
+          <label>GSTIN <input id="c-gstin"></label>
+          <div class="actions">
+            <button type="submit">Save client</button>
+            <button type="button" id="reset-client" class="ghost">Clear</button>
+          </div>
+        </form>
+        <div class="panel">
+          <h1>Client list</h1>
+          <div id="client-list" class="stack"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-settings" class="view hidden">
+      <form id="settings-form" class="panel">
+        <h1>Organisation settings</h1>
+        <h2>Invoice numbering</h2>
+        <p class="hint">New invoices use prefix + the next sequence. Change the sequence here to jump ahead or correct the counter. Saving an invoice also advances it automatically.</p>
+        <div class="grid-3">
+          <label>Prefix <input id="s-prefix" required></label>
+          <label>Next sequence <input id="s-next" type="number" min="1" required></label>
+          <label>Zero padding <input id="s-pad" type="number" min="1" max="8" required></label>
+        </div>
+
+        <h2>From / company</h2>
+        <div class="grid-2">
+          <label>Name <input id="s-name" required></label>
+          <label>GSTIN <input id="s-gstin" required></label>
+          <label class="full">Address <textarea id="s-address" rows="3"></textarea></label>
+          <label>Phone <input id="s-phone"></label>
+          <label>Email <input id="s-email"></label>
+          <label>Signatory name <input id="s-sign-name"></label>
+          <label>Designation <input id="s-sign-role"></label>
+        </div>
+
+        <h2>Current account</h2>
+        <div class="grid-2" id="bank-current"></div>
+        <h2>Savings account</h2>
+        <div class="grid-2" id="bank-savings"></div>
+
+        <h2>Terms and conditions</h2>
+        <label>One term per line
+          <textarea id="s-terms" rows="6"></textarea>
+        </label>
+        <div class="actions">
+          <button type="submit">Save settings</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <div id="toast" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>

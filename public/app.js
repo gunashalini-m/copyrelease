@@ -575,10 +575,12 @@ document.getElementById('settings-form').addEventListener('submit', async (event
 });
 
 async function init() {
-  if (!window.STANDALONE && location.protocol === 'file:') {
-    const warning = document.getElementById('wrong-file');
-    if (warning) warning.hidden = false;
-    return;
+  if (window.STANDALONE) {
+    const download = document.querySelector('.download-app');
+    if (download) {
+      download.textContent = 'Offline file';
+      download.removeAttribute('href');
+    }
   }
   settings = await api('/api/settings');
   clients = await api('/api/clients');

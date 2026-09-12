@@ -101,5 +101,8 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   const html = await fileRes.text();
   assert.ok(html.includes('STANDALONE'));
   assert.ok(html.includes('data:image/png;base64'));
-  assert.ok(html.includes('Create invoice'));
+  const page = await fetch(`${url}/`).then((res) => res.text());
+  assert.ok(page.includes('<style>'));
+  assert.ok(page.includes('.topbar'));
+  assert.ok(page.includes('STANDALONE'));
 });

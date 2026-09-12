@@ -5,16 +5,15 @@ Web app for creating GST invoices for Introis Technologies.
 ## Download (no npm needed)
 
 - **Zip of this project:** https://github.com/gunashalini-m/copyrelease/archive/refs/heads/cursor/invoice-generator-16f6.zip
-- **Single file (open in Chrome/Edge):** https://github.com/gunashalini-m/copyrelease/raw/cursor/invoice-generator-16f6/Introis-Invoice-Generator.html
+- **Single file:** https://github.com/gunashalini-m/copyrelease/raw/cursor/invoice-generator-16f6/index.html
 
-On a Mac, unzip, then double-click `Introis-Invoice-Generator.html`. If macOS blocks it, right-click → Open → Open.
+Unzip, then double-click **`index.html`**. Chrome or Edge. You should see a navy header, a form on the left, and a live invoice preview on the right. If macOS blocks it: right-click → Open → Open.
 
 ### Visual Studio Code
 
 1. File → Open Folder… and select the unzipped folder.
-2. Open **Introis-Invoice-Generator.html** at the top of the folder (not `public/index.html`).
-3. Right-click that file → **Open with Live Server**.
-   Install the **Live Server** extension if you do not see that command.
+2. Click **`index.html`** (folder root).
+3. Right-click → **Open with Live Server**, or Reveal in Finder and double-click.
 
 ## Features
 

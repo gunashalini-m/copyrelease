@@ -11,11 +11,11 @@ function dataUri(relativePath, mime) {
 }
 
 function offlineFetchScript(seed, assets) {
-  return `window.STANDALONE = true;
-window.__ASSETS = ${JSON.stringify(assets)};
+  return `window.__ASSETS = ${JSON.stringify(assets)};
 window.__SEED = ${JSON.stringify(seed)};
 (function () {
   const nativeFetch = window.fetch.bind(window);
+  window.STANDALONE = true;
   const KEY = 'introis-invoice-store-v1';
 
   function roundMoney(value) {
@@ -185,7 +185,7 @@ window.__SEED = ${JSON.stringify(seed)};
 export function buildStandaloneHtml() {
   const styles = readFileSync(path.join(root, 'public/styles.css'), 'utf8');
   const appJs = readFileSync(path.join(root, 'public/app.js'), 'utf8');
-  let html = readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  let html = readFileSync(path.join(root, 'public/shell.html'), 'utf8');
   const assets = {
     logo: dataUri('public/assets/logo.png', 'image/png'),
     signature: dataUri('public/assets/signature.png', 'image/png'),
@@ -194,14 +194,10 @@ export function buildStandaloneHtml() {
 
   html = html.replace('<link rel="stylesheet" href="styles.css">', `<style>${styles}</style>`);
   html = html.replace('src="assets/logo.png"', `src="${assets.logo}"`);
-  html = html.replace(
-    '<a class="download-app" href="/download">Download app</a>',
-    '<span class="download-app" title="You are using the downloaded app">Offline file</span>',
-  );
   const safeApp = appJs.replace(/<\/script/gi, '<\\/script');
   const shim = offlineFetchScript(seed, assets).replace(/<\/script/gi, '<\\/script');
   html = html.replace(
-    '<script type="module" src="app.js"></script>',
+    '<script src="app.js"></script>',
     `<script>${shim}</script>\n<script>${safeApp}</script>`,
   );
   return html;
