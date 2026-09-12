@@ -1,0 +1,13 @@
+Introis Invoice Generator
+=========================
+
+You do NOT need npm.
+
+On a Mac:
+  1. Unzip the download
+  2. Double-click Introis-Invoice-Generator.html
+     or Open-Invoice-Generator.command
+  3. If macOS blocks it: right-click → Open → Open
+
+The full Node app (npm start) is optional. Install Node.js LTS from
+https://nodejs.org first, then run npm ci and npm start from this folder.
