@@ -1,11 +1,27 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
 import { renderInvoiceHtml } from './invoice-html.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const chromePath = process.env.CHROME_PATH || '/usr/local/bin/google-chrome';
+
+function findChrome() {
+  const candidates = [
+    process.env.CHROME_PATH,
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    '/usr/local/bin/google-chrome',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  ].filter(Boolean);
+
+  return candidates.find((candidate) => existsSync(candidate)) || candidates[0];
+}
 
 function dataUri(filePath, mime) {
   const bytes = readFileSync(filePath);
@@ -19,7 +35,7 @@ export async function renderInvoicePdf(invoice) {
   });
 
   const browser = await puppeteer.launch({
-    executablePath: chromePath,
+    executablePath: findChrome(),
     headless: true,
     args: ['--no-sandbox', '--disable-dev-shm-usage', '--font-render-hinting=none'],
   });
