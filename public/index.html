@@ -23,9 +23,9 @@
   --gold: #a87830;
   --ink: #111111;
   --muted: #666666;
-  --table-head: #c5e4f8;
-  --table-row: #eef6fc;
-  --table-line: #b7d4ea;
+  --table-head: #c7e6fa;
+  --table-row: #eef7fc;
+  --table-line: #ffffff;
   --bg: #e8eef5;
   --panel: #ffffff;
   --line: #d5dce6;
@@ -779,10 +779,9 @@ function invoiceDocumentHtml(invoice) {
       h1{color:#002060;margin:0;font-size:22pt;font-weight:700}
       .kind{color:#666;font-size:10pt;font-weight:700;letter-spacing:0.6px;margin-top:3px}
       .grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;margin:12px 0;align-items:start}
-      table.items{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11pt}
-      table.items th{background:#c5e4f8;text-align:center;color:#111;font-weight:700}
-      table.items th, table.items td{border:1px solid #b7d4ea;padding:7px 10px}
-      table.items td{background:#eef6fc;font-weight:400}
+      table.items{width:100%;border-collapse:separate;border-spacing:3px;background:#fff;table-layout:fixed;font-size:11pt}
+      table.items th{background:#c7e6fa;text-align:center;color:#111;font-weight:700;border:none;padding:7px 10px}
+      table.items td{background:#eef7fc;font-weight:400;border:none;padding:8px 10px}
       .blue{color:#002060;font-weight:700;text-decoration:underline;text-underline-offset:2px;font-size:11pt}
       .totals{width:300px;margin:8px 0 0 auto;border-collapse:collapse}
       .totals td{color:#002060;font-weight:700;text-align:right;padding:1px 0 1px 12px;vertical-align:top;font-size:11pt}
@@ -790,6 +789,9 @@ function invoiceDocumentHtml(invoice) {
       .sign img{height:52px;width:auto;max-width:230px;object-fit:contain;display:block;margin:0 0 4px auto}
       .line{border-top:2px solid #002060;display:inline-block;min-width:210px;padding-top:3px;color:#002060;font-weight:700;font-size:11pt}
       .page-break{page-break-before:always}
+      .terms{text-align:left}
+      .terms h2{font-size:11pt;font-weight:700;margin:0 0 2px;color:#111;text-align:left}
+      .terms p{margin:0;font-size:11pt;font-weight:400;text-align:left;line-height:1.35;max-width:none}
       .heading{font-weight:700;font-size:11pt;margin:0 0 4px}
       .accept .blue{margin:0;line-height:1.35}
       .accept-field{margin:0;padding:0;font-size:11pt;font-weight:700;line-height:1.35}
@@ -817,7 +819,7 @@ function invoiceDocumentHtml(invoice) {
       <div class="accept"><p class="blue">CLIENT ACCEPTANCE</p><p class="accept-field"><b>Client Name:</b></p><p class="accept-field"><b>Date:</b></p><p class="accept-field"><b>Signature:</b></p></div>
       <div class="sign"><img src="${signature}" alt="Authorised signature"><div class="line">AUTHORISED SIGNATURE</div><p>Name: ${escapeHtml(invoice.signatory.name)}<br>Designation: ${escapeHtml(invoice.signatory.designation)}<br>Date: ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</p></div>
     </div>
-    <div class="page-break"><h2>Terms and Conditions</h2>${(invoice.terms || []).map((term) => `<p>${escapeHtml(term)}</p>`).join('')}</div>
+    <div class="page-break terms"><h2>Terms and Conditions</h2>${(invoice.terms || []).map((term) => `<p>${escapeHtml(term)}</p>`).join('')}</div>
   </body></html>`;
 }
 

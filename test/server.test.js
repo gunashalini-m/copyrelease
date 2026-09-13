@@ -110,5 +110,8 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.ok(page.includes('<b>Bill To</b>'));
   assert.ok(page.includes('<b>Bank Details</b>'));
   assert.ok(page.includes('accept-field'));
+  assert.ok(page.includes('border-spacing:3px'));
+  assert.ok(page.includes('#eef7fc'));
+  assert.ok(page.includes('.terms{text-align:left}'));
   assert.ok(page.includes('STANDALONE'));
 });
