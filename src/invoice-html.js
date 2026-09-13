@@ -78,17 +78,17 @@ export function invoiceStyles() {
       color: #111111;
       font-family: ${INVOICE_FONT};
       font-size: 11pt;
-      line-height: 1.35;
+      line-height: 1.3;
     }
     .header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 18px;
+      margin-bottom: 10px;
     }
     .logo {
       display: block;
-      height: 58px;
+      height: 52px;
       width: auto;
       max-width: 260px;
       object-fit: contain;
@@ -113,9 +113,9 @@ export function invoiceStyles() {
     .two-col {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      column-gap: 56px;
+      column-gap: 48px;
       align-items: start;
-      margin-bottom: 14px;
+      margin-bottom: 8px;
     }
     .label,
     .bank-title {
@@ -135,7 +135,7 @@ export function invoiceStyles() {
       color: ${HEADING_BLUE};
       font-weight: 700;
       font-size: 11pt;
-      margin: 16px 0 6px;
+      margin: 10px 0 4px;
       text-transform: uppercase;
       text-decoration: underline;
       text-underline-offset: 2px;
@@ -143,23 +143,26 @@ export function invoiceStyles() {
     table.items {
       width: 100%;
       border-collapse: separate;
-      border-spacing: 3px;
+      border-spacing: 2px;
       background: #ffffff;
-      margin-top: 10px;
+      margin-top: 6px;
       table-layout: fixed;
       font-size: 11pt;
     }
+    table.items col.col-no { width: 8%; }
+    table.items col.col-desc { width: 54%; }
+    table.items col.col-amt { width: 19%; }
     table.items th {
       background: #c7e6fa;
       color: #111111;
       font-weight: 700;
-      padding: 7px 10px;
+      padding: 5px 8px;
       text-align: center;
       border: none;
       font-size: 11pt;
     }
     table.items td {
-      padding: 8px 10px;
+      padding: 6px 8px;
       border: none;
       vertical-align: middle;
       color: #111111;
@@ -167,11 +170,11 @@ export function invoiceStyles() {
       background: #eef7fc;
     }
     table.items td.desc { text-align: left; }
-    table.items td.num, table.items th.num { text-align: right; white-space: nowrap; width: 18%; }
-    table.items td.center, table.items th.center { text-align: center; width: 8%; }
+    table.items td.num, table.items th.num { text-align: right; white-space: nowrap; }
+    table.items td.center, table.items th.center { text-align: center; }
     .totals {
       width: 300px;
-      margin: 8px 0 0 auto;
+      margin: 4px 0 0 auto;
       border-collapse: collapse;
       font-size: 11pt;
     }
@@ -188,8 +191,10 @@ export function invoiceStyles() {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 24px;
-      margin-top: 28px;
+      margin-top: 12px;
       align-items: start;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .accept .section-title {
       margin: 0;
@@ -310,6 +315,12 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
   <p style="margin:0 0 3px"><strong>Project Name:</strong> ${escapeHtml(invoice.projectName)}</p>
   <p style="margin:0"><strong>Duration of Project Completion:</strong> ${escapeHtml(invoice.duration)}</p>
   <table class="items">
+    <colgroup>
+      <col class="col-no">
+      <col class="col-desc">
+      <col class="col-amt">
+      <col class="col-amt">
+    </colgroup>
     <thead>
       <tr>
         <th class="center">S.No</th>

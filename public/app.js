@@ -227,7 +227,7 @@ function invoiceDocumentHtml(invoice) {
   const rows = invoice.lineItems
     .map(
       (item, index) =>
-        `<tr><td style="text-align:center">${index + 1}</td><td>${escapeHtml(item.description).replaceAll('\n', '<br>')}</td><td style="text-align:right">${formatInr(item.unitPrice)}</td><td style="text-align:right">${formatInr(item.lineTotal)}</td></tr>`,
+        `<tr><td class="center">${index + 1}</td><td class="desc">${escapeHtml(item.description).replaceAll('\n', '<br>')}</td><td class="num">${formatInr(item.unitPrice)}</td><td class="num">${formatInr(item.lineTotal)}</td></tr>`,
     )
     .join('');
   const address = (value) => escapeHtml(value).replaceAll('\n', '<br>');
@@ -235,30 +235,39 @@ function invoiceDocumentHtml(invoice) {
     <style>
       @font-face { font-family: Aptos; src: local("Aptos"), local("Aptos Regular"), url("${window.__ASSETS?.fonts?.regular || (location.protocol === 'file:' ? 'fonts/Aptos.woff2' : '/fonts/Aptos.woff2')}") format("woff2"); font-weight: 400; }
       @font-face { font-family: Aptos; src: local("Aptos Bold"), local("Aptos-Bold"), url("${window.__ASSETS?.fonts?.bold || (location.protocol === 'file:' ? 'fonts/Aptos-Bold.woff2' : '/fonts/Aptos-Bold.woff2')}") format("woff2"); font-weight: 700; }
-      @page { size: A4; margin: 14mm; }
-      body{font-family:Aptos,"Aptos Display",Calibri,Arial,sans-serif;color:#111;padding:8px;font-size:11pt;line-height:1.35}
-      .head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
-      img.logo{height:58px;width:auto;max-width:260px;object-fit:contain;object-position:left top;display:block}
+      @page { size: A4; margin: 12mm; }
+      html, body{margin:0;padding:0}
+      body{font-family:Aptos,"Aptos Display",Calibri,Arial,sans-serif;color:#111;font-size:11pt;line-height:1.3}
+      p{margin:0;font-size:11pt}
+      .head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+      img.logo{height:52px;width:auto;max-width:260px;object-fit:contain;object-position:left top;display:block}
       h1{color:#002060;margin:0;font-size:22pt;font-weight:700}
       .kind{color:#666;font-size:10pt;font-weight:700;letter-spacing:0.6px;margin-top:3px}
-      .grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;margin:12px 0;align-items:start}
-      table.items{width:100%;border-collapse:separate;border-spacing:3px;background:#fff;table-layout:fixed;font-size:11pt}
-      table.items th{background:#c7e6fa;text-align:center;color:#111;font-weight:700;border:none;padding:7px 10px}
-      table.items td{background:#eef7fc;font-weight:400;border:none;padding:8px 10px}
-      .blue{color:#002060;font-weight:700;text-decoration:underline;text-underline-offset:2px;font-size:11pt}
-      .totals{width:300px;margin:8px 0 0 auto;border-collapse:collapse}
+      .grid{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;row-gap:0;margin:8px 0;align-items:start}
+      table.items{width:100%;border-collapse:separate;border-spacing:2px;background:#fff;table-layout:fixed;font-size:11pt;margin-top:6px}
+      table.items col.col-no{width:8%}
+      table.items col.col-desc{width:54%}
+      table.items col.col-amt{width:19%}
+      table.items th{background:#c7e6fa;text-align:center;color:#111;font-weight:700;border:none;padding:5px 8px}
+      table.items td{background:#eef7fc;font-weight:400;border:none;padding:6px 8px;vertical-align:middle}
+      table.items td.desc{text-align:left}
+      table.items td.num, table.items th.num{text-align:right;white-space:nowrap}
+      table.items td.center, table.items th.center{text-align:center}
+      .blue{color:#002060;font-weight:700;text-decoration:underline;text-underline-offset:2px;font-size:11pt;margin:10px 0 4px}
+      .totals{width:300px;margin:4px 0 0 auto;border-collapse:collapse}
       .totals td{color:#002060;font-weight:700;text-align:right;padding:1px 0 1px 12px;vertical-align:top;font-size:11pt}
       .sign{text-align:right}
       .sign img{height:52px;width:auto;max-width:230px;object-fit:contain;display:block;margin:0 0 4px auto}
       .line{border-top:2px solid #002060;display:inline-block;min-width:210px;padding-top:3px;color:#002060;font-weight:700;font-size:11pt}
+      .footer{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;margin-top:12px;align-items:start;page-break-inside:avoid;break-inside:avoid}
       .page-break{page-break-before:always}
       .terms{text-align:left}
       .terms h2{font-size:11pt;font-weight:700;margin:0 0 2px;color:#111;text-align:left}
-      .terms p{margin:0;font-size:11pt;font-weight:400;text-align:left;line-height:1.35;max-width:none}
-      .heading{font-weight:700;font-size:11pt;margin:0 0 4px}
-      .accept .blue{margin:0;line-height:1.35}
-      .accept-field{margin:0;padding:0;font-size:11pt;font-weight:700;line-height:1.35}
-      p, td { font-size: 11pt; }
+      .terms p{margin:0;font-size:11pt;font-weight:400;text-align:left;line-height:1.3;max-width:none}
+      .heading{font-weight:700;font-size:11pt;margin:0 0 2px}
+      .accept .blue{margin:0;line-height:1.3}
+      .accept-field{margin:0;padding:0;font-size:11pt;font-weight:700;line-height:1.3}
+      td { font-size: 11pt; }
     </style></head><body>
     <div class="head"><img class="logo" src="${logo}" alt="Introis Technologies"><div style="text-align:right"><h1>INVOICE</h1><div class="kind">${escapeHtml(invoice.paymentKind)}</div></div></div>
     <div class="grid">
@@ -271,14 +280,14 @@ function invoiceDocumentHtml(invoice) {
     </div>
     <p class="blue">PROJECT OVERVIEW</p>
     <p><strong>Project Name:</strong> ${escapeHtml(invoice.projectName)}<br><strong>Duration of Project Completion:</strong> ${escapeHtml(invoice.duration)}</p>
-    <table class="items"><thead><tr><th>S.No</th><th>Description</th><th>Unit Price</th><th>Line Total</th></tr></thead><tbody>${rows}</tbody></table>
+    <table class="items"><colgroup><col class="col-no"><col class="col-desc"><col class="col-amt"><col class="col-amt"></colgroup><thead><tr><th class="center">S.No</th><th>Description</th><th class="num">Unit Price</th><th class="num">Line Total</th></tr></thead><tbody>${rows}</tbody></table>
     <table class="totals">
       <tr><td>Total Without<br>Taxes</td><td>${formatInr(invoice.subtotal)}</td></tr>
       <tr><td>SGST @9%</td><td>${formatInr(invoice.sgst)}</td></tr>
       <tr><td>CGST @9%</td><td>${formatInr(invoice.cgst)}</td></tr>
       <tr><td>Total Invoice<br>Value</td><td>${formatInr(invoice.total)}</td></tr>
     </table>
-    <div class="grid" style="margin-top:28px">
+    <div class="footer">
       <div class="accept"><p class="blue">CLIENT ACCEPTANCE</p><p class="accept-field"><b>Client Name:</b></p><p class="accept-field"><b>Date:</b></p><p class="accept-field"><b>Signature:</b></p></div>
       <div class="sign"><img src="${signature}" alt="Authorised signature"><div class="line">AUTHORISED SIGNATURE</div><p>Name: ${escapeHtml(invoice.signatory.name)}<br>Designation: ${escapeHtml(invoice.signatory.designation)}<br>Date: ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</p></div>
     </div>

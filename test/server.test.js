@@ -95,6 +95,30 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.ok(pdf.subarray(0, 4).toString() === '%PDF');
   assert.ok(pdf.length > 1000);
 
+  const printPdfRes = await fetch(`${url}/api/invoices/preview.pdf`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      accountType: 'current',
+      projectName: 'Pukra Hospital - Social Media Management',
+      duration: 'Monthly Retainer',
+      client: clients[0],
+      lineItems: [
+        {
+          description: 'Introis team Service Charge\n- Account Management\n- Social Media Management',
+          quantity: 1,
+          unitPrice: 25000,
+        },
+        { description: 'Meta Advertisement Charges', quantity: 1, unitPrice: 43000 },
+        { description: 'Gateway Charges', quantity: 1, unitPrice: 3500 },
+      ],
+    }),
+  });
+  assert.equal(printPdfRes.status, 200);
+  const printPdf = Buffer.from(await printPdfRes.arrayBuffer());
+  const pageCount = [...printPdf.toString('latin1').matchAll(/\/Type\s*\/Page(?![s\w])/g)].length;
+  assert.equal(pageCount, 2);
+
   const fileRes = await fetch(`${url}/download`);
   assert.equal(fileRes.status, 200);
   assert.match(fileRes.headers.get('content-disposition') || '', /Introis-Invoice-Generator.html/);
@@ -110,7 +134,8 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.ok(page.includes('<b>Bill To</b>'));
   assert.ok(page.includes('<b>Bank Details</b>'));
   assert.ok(page.includes('accept-field'));
-  assert.ok(page.includes('border-spacing:3px'));
+  assert.ok(page.includes('border-spacing:2px'));
+  assert.ok(page.includes('col-desc'));
   assert.ok(page.includes('#eef7fc'));
   assert.ok(page.includes('.terms{text-align:left}'));
   assert.ok(page.includes('STANDALONE'));
