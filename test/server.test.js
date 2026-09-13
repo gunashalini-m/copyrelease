@@ -137,6 +137,6 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.ok(page.includes('border-spacing:2px'));
   assert.ok(page.includes('col-desc'));
   assert.ok(page.includes('#eef7fc'));
-  assert.ok(page.includes('.terms{text-align:left}'));
+  assert.ok(page.includes('print-color-adjust: exact'));
   assert.ok(page.includes('STANDALONE'));
 });
