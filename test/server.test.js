@@ -107,8 +107,6 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
       accountType: 'savings',
       projectName: 'A KOLANDHA MUDALIAR SONS - Social Media Management',
       duration: 'May 2026 - Monthly Retainer',
-      customFields: [{ label: 'PO number', value: 'AKS-MAY-26' }],
-      layout: { compact: true, termsOnNewPage: false },
       client: createdClient,
       lineItems: [
         {
@@ -123,23 +121,6 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   const printPdf = Buffer.from(await printPdfRes.arrayBuffer());
   const pageCount = [...printPdf.toString('latin1').matchAll(/\/Type\s*\/Page(?![s\w])/g)].length;
   assert.equal(pageCount, 1);
-
-  const gstPdfRes = await fetch(`${url}/api/invoices/preview.pdf`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      accountType: 'current',
-      projectName: 'Pukra Hospital - Social Media Management',
-      duration: 'Monthly Retainer',
-      layout: { termsOnNewPage: true },
-      client: clients[0],
-      lineItems: [{ description: 'Service Charge', quantity: 1, unitPrice: 25000 }],
-    }),
-  });
-  assert.equal(gstPdfRes.status, 200);
-  const gstPdf = Buffer.from(await gstPdfRes.arrayBuffer());
-  const gstPages = [...gstPdf.toString('latin1').matchAll(/\/Type\s*\/Page(?![s\w])/g)].length;
-  assert.ok(gstPages >= 2);
 
   const fileRes = await fetch(`${url}/download`);
   assert.equal(fileRes.status, 200);
@@ -164,7 +145,7 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.ok(page.includes('html2canvas'));
   assert.ok(page.includes('srcdoc'));
   assert.ok(page.includes('STANDALONE'));
-  assert.ok(page.includes('Custom fields'));
   assert.ok(page.includes('Savings — Non-GST invoice'));
-  assert.ok(page.includes('Use leftover space on page 1'));
+  assert.ok(!page.includes('Custom fields'));
+  assert.ok(!page.includes('page-break terms'));
 });

@@ -68,41 +68,24 @@ function multiline(value) {
   return escapeHtml(value).replaceAll('\n', '<br>');
 }
 
-function invoiceLayout(invoice) {
-  const layout = invoice.layout || {};
-  const fontSize = Number(layout.fontSize) || 11;
-  const descWidth = Number(layout.descWidth) || 54;
-  const amtWidth = (100 - 8 - descWidth) / 2;
-  return {
-    fontSize,
-    compact: layout.compact !== false,
-    termsOnNewPage: Boolean(layout.termsOnNewPage),
-    descWidth,
-    amtWidth,
-    showCompanyGstin: layout.showCompanyGstin !== false,
-    showRecipientGstin: layout.showRecipientGstin !== false,
-    showAccountType: layout.showAccountType !== false,
-    showBankBranch: layout.showBankBranch !== false,
-  };
-}
-
-export function invoiceStyles(layout = {}) {
+export function invoiceStyles() {
   return `
     ${fontFaceCss()}
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       padding: 0;
+      height: auto;
       color: #111111;
       font-family: ${INVOICE_FONT};
-      font-size: ${layout.fontSize || 11}pt;
-      line-height: ${layout.compact === false ? 1.35 : 1.25};
+      font-size: 11pt;
+      line-height: 1.25;
     }
     .header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: ${layout.compact === false ? 10 : 6}px;
+      margin-bottom: 6px;
     }
     .logo {
       display: block;
@@ -138,22 +121,22 @@ export function invoiceStyles(layout = {}) {
     .label,
     .bank-title {
       font-weight: 700 !important;
-      font-size: ${layout.fontSize || 11}pt;
+      font-size: 11pt;
       margin: 0 0 4px;
       color: #111111;
     }
-    .block p { margin: 0; font-size: ${layout.fontSize || 11}pt; font-weight: 400; }
+    .block p { margin: 0; font-size: 11pt; font-weight: 400; }
     .block p.label,
     .block p.bank-title {
       font-weight: 700;
     }
     .block p strong, .block p b { font-weight: 700; }
-    .meta-row { margin: 0 0 2px; font-size: ${layout.fontSize || 11}pt; }
+    .meta-row { margin: 0 0 2px; font-size: 11pt; }
     .section-title {
       color: ${HEADING_BLUE};
       font-weight: 700;
-      font-size: ${layout.fontSize || 11}pt;
-      margin: ${layout.compact === false ? 10 : 6}px 0 3px;
+      font-size: 11pt;
+      margin: 6px 0 3px;
       text-transform: uppercase;
       text-decoration: underline;
       text-underline-offset: 2px;
@@ -165,11 +148,11 @@ export function invoiceStyles(layout = {}) {
       background: #ffffff;
       margin-top: 6px;
       table-layout: fixed;
-      font-size: ${layout.fontSize || 11}pt;
+      font-size: 11pt;
     }
     table.items col.col-no { width: 8%; }
-    table.items col.col-desc { width: ${layout.descWidth || 54}%; }
-    table.items col.col-amt { width: ${layout.amtWidth || 19}%; }
+    table.items col.col-desc { width: 54%; }
+    table.items col.col-amt { width: 19%; }
     table.items th {
       background: #c7e6fa;
       color: #111111;
@@ -177,10 +160,10 @@ export function invoiceStyles(layout = {}) {
       padding: 5px 8px;
       text-align: center;
       border: none;
-      font-size: ${layout.fontSize || 11}pt;
+      font-size: 11pt;
     }
     table.items td {
-      padding: ${layout.compact === false ? 6 : 4}px 8px;
+      padding: 4px 8px;
       border: none;
       vertical-align: middle;
       color: #111111;
@@ -194,14 +177,14 @@ export function invoiceStyles(layout = {}) {
       width: 300px;
       margin: 4px 0 0 auto;
       border-collapse: collapse;
-      font-size: ${layout.fontSize || 11}pt;
+      font-size: 11pt;
     }
     .totals td {
       color: ${HEADING_BLUE};
       font-weight: 700;
       padding: 1px 0 1px 12px;
       vertical-align: top;
-      font-size: ${layout.fontSize || 11}pt;
+      font-size: 11pt;
     }
     .totals td.lab { text-align: right; width: 58%; }
     .totals td.amt { text-align: right; white-space: nowrap; }
@@ -209,10 +192,12 @@ export function invoiceStyles(layout = {}) {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 24px;
-      margin-top: ${layout.compact === false ? 12 : 8}px;
+      margin-top: 8px;
       align-items: start;
       page-break-inside: avoid;
       break-inside: avoid;
+      break-after: avoid;
+      page-break-after: avoid;
     }
     .accept .section-title {
       margin: 0;
@@ -221,7 +206,7 @@ export function invoiceStyles(layout = {}) {
     .accept-field {
       margin: 0;
       padding: 0;
-      font-size: ${layout.fontSize || 11}pt;
+      font-size: 11pt;
       font-weight: 700;
       line-height: 1.35;
     }
@@ -243,16 +228,17 @@ export function invoiceStyles(layout = {}) {
       color: ${HEADING_BLUE};
       font-weight: 700;
       letter-spacing: 0.3px;
-      font-size: ${layout.fontSize || 11}pt;
+      font-size: 11pt;
     }
-    .sign p { margin: 6px 0 0; font-size: ${layout.fontSize || 11}pt; font-weight: 400; }
-    .page-break { page-break-before: always; break-before: page; }
+    .sign p { margin: 6px 0 0; font-size: 11pt; font-weight: 400; }
     .terms {
       text-align: left;
-      margin-top: ${layout.termsOnNewPage ? 0 : 14}px;
+      margin-top: 10px;
+      break-before: avoid;
+      page-break-before: avoid;
     }
     .terms h2 {
-      font-size: ${layout.fontSize || 11}pt;
+      font-size: 11pt;
       font-weight: 700;
       margin: 0 0 2px;
       color: #111111;
@@ -261,7 +247,7 @@ export function invoiceStyles(layout = {}) {
     .terms p {
       margin: 0;
       max-width: none;
-      font-size: ${layout.fontSize || 11}pt;
+      font-size: 11pt;
       font-weight: 400;
       text-align: left;
       line-height: 1.35;
@@ -270,7 +256,6 @@ export function invoiceStyles(layout = {}) {
 }
 
 export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
-  const layout = invoiceLayout(invoice);
   const sgstRate = invoice.sgstRate ?? 9;
   const cgstRate = invoice.cgstRate ?? 9;
   const number = formatInvoiceNumber(
@@ -284,21 +269,13 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
         `<tr><td class="center">${index + 1}</td><td class="desc">${multiline(item.description)}</td><td class="num">${formatInr(item.unitPrice)}</td><td class="num">${formatInr(item.lineTotal)}</td></tr>`,
     )
     .join('');
-  const customFields = (invoice.customFields ?? [])
-    .filter((field) => field.label || field.value)
-    .map(
-      (field) =>
-        `<p style="margin:3px 0 0"><strong>${escapeHtml(field.label)}${field.label ? ':' : ''}</strong> ${multiline(field.value)}</p>`,
-    )
-    .join('');
-  const termsClass = layout.termsOnNewPage ? 'page-break terms' : 'terms';
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <title>${escapeHtml(number)}</title>
-  <style>${invoiceStyles(layout)}</style>
+  <style>${invoiceStyles()}</style>
 </head>
 <body>
   <div class="header">
@@ -315,7 +292,7 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
       <p>${multiline(invoice.company.address)}</p>
       <p>Phone: ${escapeHtml(invoice.company.phone)}</p>
       <p>Email: ${escapeHtml(invoice.company.email)}</p>
-      ${layout.showCompanyGstin ? `<p>GSTIN: ${escapeHtml(invoice.company.gstin)}</p>` : ''}
+      <p>GSTIN: ${escapeHtml(invoice.company.gstin)}</p>
     </div>
     <div class="block">
       <p class="label"><b>Bill To</b></p>
@@ -323,7 +300,7 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
       <p>${escapeHtml(invoice.client.companyName)}</p>
       <p>${multiline(invoice.client.address)}</p>
       <p>Email: ${escapeHtml(invoice.client.email)}</p>
-      ${layout.showRecipientGstin ? `<p>GSTIN of Recipient: ${escapeHtml(invoice.client.gstin)}</p>` : ''}
+      <p>GSTIN of Recipient: ${escapeHtml(invoice.client.gstin)}</p>
     </div>
   </div>
   <div class="two-col">
@@ -337,14 +314,13 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
       <p>A/C Holder Name: ${escapeHtml(invoice.bank.holderName)}</p>
       <p>Account number: ${escapeHtml(invoice.bank.accountNumber)}</p>
       <p>Bank IFSC Code: ${escapeHtml(invoice.bank.ifsc)}</p>
-      ${layout.showAccountType ? `<p>Account Type: ${escapeHtml(invoice.bank.accountType)}</p>` : ''}
-      ${layout.showBankBranch ? `<p>Account Branch: ${escapeHtml(invoice.bank.branch)}</p>` : ''}
+      <p>Account Type: ${escapeHtml(invoice.bank.accountType)}</p>
+      <p>Account Branch: ${escapeHtml(invoice.bank.branch)}</p>
     </div>
   </div>
   <p class="section-title">Project Overview</p>
   <p style="margin:0 0 3px"><strong>Project Name:</strong> ${escapeHtml(invoice.projectName)}</p>
   <p style="margin:0"><strong>Duration of Project Completion:</strong> ${escapeHtml(invoice.duration)}</p>
-  ${customFields}
   <table class="items">
     <colgroup>
       <col class="col-no">
@@ -383,7 +359,7 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
       Date: ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</p>
     </div>
   </div>
-  <div class="${termsClass}">
+  <div class="terms">
     <h2>Terms and Conditions</h2>
     ${(invoice.terms ?? []).map((term) => `<p>${escapeHtml(term)}</p>`).join('')}
   </div>

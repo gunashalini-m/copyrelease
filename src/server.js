@@ -16,33 +16,6 @@ function requiredString(value, field) {
   return null;
 }
 
-function normalizeCustomFields(fields) {
-  if (!Array.isArray(fields)) {
-    return [];
-  }
-  return fields
-    .map((field) => ({
-      label: String(field?.label ?? '').trim(),
-      value: String(field?.value ?? '').trim(),
-    }))
-    .filter((field) => field.label || field.value);
-}
-
-function normalizeLayout(layout = {}) {
-  const fontSize = Number(layout.fontSize) || 11;
-  const descWidth = Number(layout.descWidth) || 54;
-  return {
-    fontSize: Math.min(13, Math.max(9, fontSize)),
-    compact: layout.compact !== false,
-    termsOnNewPage: Boolean(layout.termsOnNewPage),
-    descWidth: Math.min(70, Math.max(40, descWidth)),
-    showCompanyGstin: layout.showCompanyGstin !== false,
-    showRecipientGstin: layout.showRecipientGstin !== false,
-    showAccountType: layout.showAccountType !== false,
-    showBankBranch: layout.showBankBranch !== false,
-  };
-}
-
 function buildInvoiceRecord(store, payload, { existing } = {}) {
   const settings = store.getSettings();
   const accountType = String(payload.accountType || 'current').toLowerCase();
@@ -90,8 +63,6 @@ function buildInvoiceRecord(store, payload, { existing } = {}) {
     signatory: { ...settings.signatory },
     terms: [...settings.terms],
     taxMode: rates.taxMode,
-    customFields: normalizeCustomFields(payload.customFields),
-    layout: normalizeLayout(payload.layout),
     client: {
       id: payload.client?.id || null,
       contactName: String(payload.client.contactName).trim(),

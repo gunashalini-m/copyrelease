@@ -43,27 +43,6 @@ window.__SEED = ${JSON.stringify(seed)};
     const cgst = roundMoney(subtotal * (cgstRate / 100));
     return { items: items, subtotal: subtotal, sgst: sgst, cgst: cgst, total: roundMoney(subtotal + sgst + cgst), sgstRate: sgstRate, cgstRate: cgstRate };
   }
-  function normalizeCustomFields(fields) {
-    if (!Array.isArray(fields)) return [];
-    return fields.map(function (field) {
-      return { label: String((field && field.label) || '').trim(), value: String((field && field.value) || '').trim() };
-    }).filter(function (field) { return field.label || field.value; });
-  }
-  function normalizeLayout(layout) {
-    layout = layout || {};
-    var fontSize = Number(layout.fontSize) || 11;
-    var descWidth = Number(layout.descWidth) || 54;
-    return {
-      fontSize: Math.min(13, Math.max(9, fontSize)),
-      compact: layout.compact !== false,
-      termsOnNewPage: Boolean(layout.termsOnNewPage),
-      descWidth: Math.min(70, Math.max(40, descWidth)),
-      showCompanyGstin: layout.showCompanyGstin !== false,
-      showRecipientGstin: layout.showRecipientGstin !== false,
-      showAccountType: layout.showAccountType !== false,
-      showBankBranch: layout.showBankBranch !== false,
-    };
-  }
   function formatInvoiceNumber(prefix, sequence, padding) {
     const numeric = Number(sequence) || 0;
     const width = Math.max(padding || 3, String(numeric).length);
@@ -112,8 +91,6 @@ window.__SEED = ${JSON.stringify(seed)};
       signatory: Object.assign({}, settings.signatory),
       terms: (settings.terms || []).slice(),
       taxMode: rates.taxMode,
-      customFields: normalizeCustomFields(payload.customFields),
-      layout: normalizeLayout(payload.layout),
       client: client,
       lineItems: totals.items,
       subtotal: totals.subtotal,
