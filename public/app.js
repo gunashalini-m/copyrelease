@@ -8,13 +8,13 @@ const views = {
 let settings = null;
 let clients = [];
 
-function toast(message) {
+function toast(message, ms = 2400) {
   const el = document.getElementById('toast');
   el.textContent = message;
   el.hidden = false;
   setTimeout(() => {
     el.hidden = true;
-  }, 2400);
+  }, ms);
 }
 
 async function api(path, options = {}) {
@@ -340,51 +340,93 @@ function getJsPdf() {
   return window.jspdf?.jsPDF || window.jsPDF;
 }
 
-async function canvasToPdfPage(pdf, canvas, { addPageFirst }) {
+function canvasToDataUrl(canvas) {
+  try {
+    return { data: canvas.toDataURL('image/jpeg', 0.92), format: 'JPEG' };
+  } catch (error) {
+    return { data: canvas.toDataURL('image/png'), format: 'PNG' };
+  }
+}
+
+function addCanvasToPdf(pdf, canvas, addPageFirst) {
   const margin = 12;
   const maxW = 210 - margin * 2;
   const maxH = 297 - margin * 2;
   const width = maxW;
   const height = (canvas.height * maxW) / canvas.width;
-  const data = canvas.toDataURL('image/jpeg', 0.93);
+  const { data, format } = canvasToDataUrl(canvas);
   if (addPageFirst) pdf.addPage();
   if (height <= maxH) {
-    pdf.addImage(data, 'JPEG', margin, margin, width, height);
+    pdf.addImage(data, format, margin, margin, width, height);
     return;
   }
   let offset = 0;
   let firstSlice = true;
   while (offset < height - 0.2) {
     if (!firstSlice) pdf.addPage();
-    pdf.addImage(data, 'JPEG', margin, margin - offset, width, height);
+    pdf.addImage(data, format, margin, margin - offset, width, height);
     offset += maxH;
     firstSlice = false;
   }
 }
 
+async function captureElement(element) {
+  const options = {
+    backgroundColor: '#ffffff',
+    useCORS: true,
+    logging: false,
+    imageTimeout: 20000,
+    scale: 2,
+    windowWidth: Math.max(element.scrollWidth, 794),
+  };
+  try {
+    return await html2canvas(element, options);
+  } catch (error) {
+    return await html2canvas(element, { ...options, scale: 1 });
+  }
+}
+
+async function waitForFrame(frame) {
+  if (frame.contentDocument?.readyState === 'complete' && frame.contentDocument.body?.children.length) {
+    return;
+  }
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Timed out preparing the invoice')), 20000);
+    frame.addEventListener(
+      'load',
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true },
+    );
+  });
+}
+
 async function downloadInvoicePdf(invoice, filename) {
   const JsPDF = getJsPdf();
   if (typeof html2canvas !== 'function' || !JsPDF) {
-    throw new Error('Could not prepare the PDF download');
+    throw new Error('Could not prepare the PDF download. Reload the page and try again.');
+  }
+  if (!invoice?.lineItems?.length) {
+    throw new Error('Add at least one line item before downloading the PDF');
   }
 
   const html = invoiceDocumentHtml(invoice, { embedFonts: true });
-  const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
   const frame = document.createElement('iframe');
   frame.title = 'Invoice PDF';
-  frame.src = url;
   frame.style.cssText =
-    'position:fixed;top:0;left:0;width:210mm;height:297mm;border:0;background:#fff;z-index:-1;opacity:0.01;';
+    'position:fixed;left:0;top:0;width:794px;height:1123px;border:0;background:#fff;opacity:0.01;z-index:1;pointer-events:none;';
   document.body.append(frame);
+  const loadWait = waitForFrame(frame);
+  frame.srcdoc = html;
 
   try {
-    await new Promise((resolve, reject) => {
-      frame.addEventListener('load', resolve, { once: true });
-      frame.addEventListener('error', () => reject(new Error('Could not render the invoice')), { once: true });
-    });
+    await loadWait;
     const doc = frame.contentDocument;
-    const win = frame.contentWindow;
-    win.html2canvas = html2canvas;
+    if (!doc?.body) {
+      throw new Error('Could not open the invoice for PDF export');
+    }
     try {
       if (doc.fonts?.ready) await doc.fonts.ready;
     } catch (error) {}
@@ -392,41 +434,31 @@ async function downloadInvoicePdf(invoice, filename) {
       [...doc.images].map((img) => (img.decode ? img.decode().catch(() => {}) : Promise.resolve())),
     );
     doc.body.style.boxSizing = 'border-box';
-    doc.body.style.width = '210mm';
+    doc.body.style.width = '794px';
     doc.body.style.margin = '0';
-    doc.body.style.padding = '12mm';
+    doc.body.style.padding = '45px';
     doc.body.style.background = '#fff';
 
     const terms = doc.querySelector('.terms');
-    const page1 = doc.createElement('div');
-    page1.style.cssText = 'background:#fff;';
-    [...doc.body.children]
-      .filter((node) => node !== terms)
-      .forEach((node) => page1.append(node));
-    doc.body.insertBefore(page1, terms || null);
-    const sheets = [page1];
-    if (terms) {
-      terms.style.pageBreakBefore = 'auto';
-      terms.style.breakBefore = 'auto';
-      terms.style.background = '#fff';
-      sheets.push(terms);
-    }
-
+    if (terms) terms.style.display = 'none';
+    const page1 = await captureElement(doc.body);
     const pdf = new JsPDF({ unit: 'mm', format: 'a4', compress: true });
-    for (let i = 0; i < sheets.length; i += 1) {
-      const canvas = await win.html2canvas(sheets[i], {
-        scale: 2,
-        backgroundColor: '#ffffff',
-        useCORS: true,
-        logging: false,
-        windowWidth: sheets[i].scrollWidth,
+    addCanvasToPdf(pdf, page1, false);
+
+    if (terms) {
+      [...doc.body.children].forEach((node) => {
+        if (node !== terms) node.style.display = 'none';
       });
-      await canvasToPdfPage(pdf, canvas, { addPageFirst: i > 0 });
+      terms.style.display = 'block';
+      const page2 = await captureElement(doc.body);
+      addCanvasToPdf(pdf, page2, true);
     }
     triggerDownload(pdf.output('blob'), filename);
+  } catch (error) {
+    const detail = error && error.message ? error.message : 'Unknown error';
+    throw new Error(`Could not download the PDF (${detail})`);
   } finally {
     frame.remove();
-    URL.revokeObjectURL(url);
   }
 }
 
@@ -569,8 +601,9 @@ document.getElementById('invoice-form').addEventListener('submit', async (event)
 document.getElementById('download-pdf').addEventListener('click', async () => {
   try {
     await downloadCurrentPdf();
+    toast('PDF downloaded');
   } catch (error) {
-    toast(error.message);
+    toast(error.message, 6000);
   }
 });
 

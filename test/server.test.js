@@ -140,5 +140,6 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.ok(page.includes('print-color-adjust: exact'));
   assert.ok(page.includes('downloadInvoicePdf'));
   assert.ok(page.includes('html2canvas'));
+  assert.ok(page.includes('srcdoc'));
   assert.ok(page.includes('STANDALONE'));
 });
