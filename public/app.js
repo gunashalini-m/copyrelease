@@ -336,52 +336,98 @@ function triggerDownload(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function openPrintableInvoice(invoice) {
+function getJsPdf() {
+  return window.jspdf?.jsPDF || window.jsPDF;
+}
+
+async function canvasToPdfPage(pdf, canvas, { addPageFirst }) {
+  const margin = 12;
+  const maxW = 210 - margin * 2;
+  const maxH = 297 - margin * 2;
+  const width = maxW;
+  const height = (canvas.height * maxW) / canvas.width;
+  const data = canvas.toDataURL('image/jpeg', 0.93);
+  if (addPageFirst) pdf.addPage();
+  if (height <= maxH) {
+    pdf.addImage(data, 'JPEG', margin, margin, width, height);
+    return;
+  }
+  let offset = 0;
+  let firstSlice = true;
+  while (offset < height - 0.2) {
+    if (!firstSlice) pdf.addPage();
+    pdf.addImage(data, 'JPEG', margin, margin - offset, width, height);
+    offset += maxH;
+    firstSlice = false;
+  }
+}
+
+async function downloadInvoicePdf(invoice, filename) {
+  const JsPDF = getJsPdf();
+  if (typeof html2canvas !== 'function' || !JsPDF) {
+    throw new Error('Could not prepare the PDF download');
+  }
+
   const html = invoiceDocumentHtml(invoice, { embedFonts: true });
-  const blob = new Blob([html], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  const frame = document.createElement('iframe');
+  frame.title = 'Invoice PDF';
+  frame.src = url;
+  frame.style.cssText =
+    'position:fixed;top:0;left:0;width:210mm;height:297mm;border:0;background:#fff;z-index:-1;opacity:0.01;';
+  document.body.append(frame);
 
-  const cleanup = (frame) => {
-    if (frame?.parentNode) frame.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  const runPrint = async (win, doc, frame) => {
+  try {
+    await new Promise((resolve, reject) => {
+      frame.addEventListener('load', resolve, { once: true });
+      frame.addEventListener('error', () => reject(new Error('Could not render the invoice')), { once: true });
+    });
+    const doc = frame.contentDocument;
+    const win = frame.contentWindow;
+    win.html2canvas = html2canvas;
     try {
       if (doc.fonts?.ready) await doc.fonts.ready;
     } catch (error) {}
     await Promise.all(
       [...doc.images].map((img) => (img.decode ? img.decode().catch(() => {}) : Promise.resolve())),
     );
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    win.focus();
-    win.print();
-    win.addEventListener('afterprint', () => cleanup(frame), { once: true });
-    setTimeout(() => cleanup(frame), 120000);
-  };
+    doc.body.style.boxSizing = 'border-box';
+    doc.body.style.width = '210mm';
+    doc.body.style.margin = '0';
+    doc.body.style.padding = '12mm';
+    doc.body.style.background = '#fff';
 
-  const popup = window.open(url, 'introis-invoice-print', 'width=900,height=700');
-  if (popup) {
-    popup.addEventListener('load', () => runPrint(popup, popup.document, null), { once: true });
-    return;
+    const terms = doc.querySelector('.terms');
+    const page1 = doc.createElement('div');
+    page1.style.cssText = 'background:#fff;';
+    [...doc.body.children]
+      .filter((node) => node !== terms)
+      .forEach((node) => page1.append(node));
+    doc.body.insertBefore(page1, terms || null);
+    const sheets = [page1];
+    if (terms) {
+      terms.style.pageBreakBefore = 'auto';
+      terms.style.breakBefore = 'auto';
+      terms.style.background = '#fff';
+      sheets.push(terms);
+    }
+
+    const pdf = new JsPDF({ unit: 'mm', format: 'a4', compress: true });
+    for (let i = 0; i < sheets.length; i += 1) {
+      const canvas = await win.html2canvas(sheets[i], {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false,
+        windowWidth: sheets[i].scrollWidth,
+      });
+      await canvasToPdfPage(pdf, canvas, { addPageFirst: i > 0 });
+    }
+    triggerDownload(pdf.output('blob'), filename);
+  } finally {
+    frame.remove();
+    URL.revokeObjectURL(url);
   }
-
-  const frame = document.createElement('iframe');
-  frame.title = 'Print invoice';
-  frame.src = url;
-  frame.style.cssText =
-    'position:fixed;top:0;left:0;width:210mm;height:297mm;border:0;background:#fff;z-index:2147483646;opacity:0.01;';
-  document.body.append(frame);
-  frame.addEventListener('load', () => runPrint(frame.contentWindow, frame.contentDocument, frame), { once: true });
-}
-
-function downloadWord(invoice) {
-  const inner = invoiceDocumentHtml(invoice);
-  const word = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">${inner.replace('<!DOCTYPE html><html>', '').replace('</html>', '')}</html>`;
-  triggerDownload(
-    new Blob(['\ufeff', word], { type: 'application/msword' }),
-    `${invoice.number}.doc`,
-  );
 }
 
 async function consumePdfResponse(response, filename) {
@@ -393,7 +439,7 @@ async function consumePdfResponse(response, filename) {
   if (type.includes('application/json')) {
     const data = await response.json();
     if (data.print && data.invoice) {
-      openPrintableInvoice(data.invoice);
+      await downloadInvoicePdf(data.invoice, filename);
       return;
     }
     throw new Error(data.error || 'Could not build PDF');
@@ -401,8 +447,21 @@ async function consumePdfResponse(response, filename) {
   triggerDownload(await response.blob(), filename);
 }
 
+function downloadWord(invoice) {
+  const inner = invoiceDocumentHtml(invoice);
+  const word = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">${inner.replace('<!DOCTYPE html><html>', '').replace('</html>', '')}</html>`;
+  triggerDownload(
+    new Blob(['\ufeff', word], { type: 'application/msword' }),
+    `${invoice.number}.doc`,
+  );
+}
+
 async function downloadCurrentPdf() {
   const preview = await api('/api/invoices/preview', { method: 'POST', body: formPayload() });
+  if (window.STANDALONE) {
+    await downloadInvoicePdf(preview, `${preview.number}.pdf`);
+    return;
+  }
   const response = await fetch('/api/invoices/preview.pdf', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

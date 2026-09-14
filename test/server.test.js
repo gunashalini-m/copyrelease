@@ -138,6 +138,7 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.ok(page.includes('col-desc'));
   assert.ok(page.includes('#eef7fc'));
   assert.ok(page.includes('print-color-adjust: exact'));
-  assert.ok(page.includes('createObjectURL'));
+  assert.ok(page.includes('downloadInvoicePdf'));
+  assert.ok(page.includes('html2canvas'));
   assert.ok(page.includes('STANDALONE'));
 });

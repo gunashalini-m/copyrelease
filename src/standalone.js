@@ -201,11 +201,13 @@ export function buildStandaloneHtml() {
     .replaceAll('url("fonts/Aptos-Bold.woff2")', `url("${assets.fonts.bold}")`);
   html = html.replace('<link rel="stylesheet" href="styles.css">', `<style>${inlinedCss}</style>`);
   html = html.replace('src="assets/logo.png"', `src="${assets.logo}"`);
+  const inlineScript = (relativePath) =>
+    readFileSync(path.join(root, relativePath), 'utf8').replace(/<\/script/gi, '<\\/script');
   const safeApp = appJs.replace(/<\/script/gi, '<\\/script');
   const shim = offlineFetchScript(seed, assets).replace(/<\/script/gi, '<\\/script');
   html = html.replace(
-    '<script src="app.js"></script>',
-    `<script>${shim}</script>\n<script>${safeApp}</script>`,
+    '<script src="vendor/html2canvas.min.js"></script>\n  <script src="vendor/jspdf.umd.min.js"></script>\n  <script src="app.js"></script>',
+    `<script>${inlineScript('public/vendor/html2canvas.min.js')}</script>\n<script>${inlineScript('public/vendor/jspdf.umd.min.js')}</script>\n<script>${shim}</script>\n<script>${safeApp}</script>`,
   );
   return html;
 }
