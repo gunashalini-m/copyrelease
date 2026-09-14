@@ -79,13 +79,13 @@ export function invoiceStyles() {
       color: #111111;
       font-family: ${INVOICE_FONT};
       font-size: 11pt;
-      line-height: 1.25;
+      line-height: 1.15;
     }
     .header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 6px;
+      margin-bottom: 2px;
     }
     .logo {
       display: block;
@@ -105,7 +105,7 @@ export function invoiceStyles() {
       line-height: 1.1;
     }
     .invoice-kind {
-      margin: 3px 0 0;
+      margin: 1px 0 0;
       color: #666666;
       font-size: 10pt;
       letter-spacing: 0.6px;
@@ -116,27 +116,27 @@ export function invoiceStyles() {
       grid-template-columns: 1fr 1fr;
       column-gap: 48px;
       align-items: start;
-      margin-bottom: 8px;
+      margin-bottom: 2px;
     }
     .label,
     .bank-title {
       font-weight: 700 !important;
       font-size: 11pt;
-      margin: 0 0 4px;
+      margin: 0 0 1px;
       color: #111111;
     }
-    .block p { margin: 0; font-size: 11pt; font-weight: 400; }
+    .block p { margin: 0; font-size: 11pt; font-weight: 400; line-height: 1.15; }
     .block p.label,
     .block p.bank-title {
       font-weight: 700;
     }
     .block p strong, .block p b { font-weight: 700; }
-    .meta-row { margin: 0 0 2px; font-size: 11pt; }
+    .meta-row { margin: 0; font-size: 11pt; line-height: 1.15; }
     .section-title {
       color: ${HEADING_BLUE};
       font-weight: 700;
       font-size: 11pt;
-      margin: 6px 0 3px;
+      margin: 4px 0 1px;
       text-transform: uppercase;
       text-decoration: underline;
       text-underline-offset: 2px;
@@ -146,7 +146,7 @@ export function invoiceStyles() {
       border-collapse: separate;
       border-spacing: 2px;
       background: #ffffff;
-      margin-top: 6px;
+      margin-top: 3px;
       table-layout: fixed;
       font-size: 11pt;
     }
@@ -157,13 +157,13 @@ export function invoiceStyles() {
       background: #c7e6fa;
       color: #111111;
       font-weight: 700;
-      padding: 5px 8px;
+      padding: 3px 6px;
       text-align: center;
       border: none;
       font-size: 11pt;
     }
     table.items td {
-      padding: 4px 8px;
+      padding: 2px 6px;
       border: none;
       vertical-align: middle;
       color: #111111;
@@ -175,7 +175,7 @@ export function invoiceStyles() {
     table.items td.center, table.items th.center { text-align: center; }
     .totals {
       width: 300px;
-      margin: 4px 0 0 auto;
+      margin: 2px 0 0 auto;
       border-collapse: collapse;
       font-size: 11pt;
     }
@@ -192,7 +192,7 @@ export function invoiceStyles() {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 24px;
-      margin-top: 8px;
+      margin-top: 4px;
       align-items: start;
       page-break-inside: avoid;
       break-inside: avoid;
@@ -201,14 +201,14 @@ export function invoiceStyles() {
     }
     .accept .section-title {
       margin: 0;
-      line-height: 1.35;
+      line-height: 1.2;
     }
     .accept-field {
       margin: 0;
       padding: 0;
       font-size: 11pt;
       font-weight: 700;
-      line-height: 1.35;
+      line-height: 1.2;
     }
     .sign { text-align: right; }
     .sign img {
@@ -218,7 +218,7 @@ export function invoiceStyles() {
       object-fit: contain;
       object-position: right bottom;
       display: block;
-      margin: 0 0 4px auto;
+      margin: 0 0 2px auto;
     }
     .sign .line {
       border-top: 2px solid ${HEADING_BLUE};
@@ -230,17 +230,17 @@ export function invoiceStyles() {
       letter-spacing: 0.3px;
       font-size: 11pt;
     }
-    .sign p { margin: 6px 0 0; font-size: 11pt; font-weight: 400; }
+    .sign p { margin: 2px 0 0; font-size: 11pt; font-weight: 400; }
     .terms {
       text-align: left;
-      margin-top: 10px;
+      margin-top: 4px;
       break-before: avoid;
       page-break-before: avoid;
     }
     .terms h2 {
       font-size: 11pt;
       font-weight: 700;
-      margin: 0 0 2px;
+      margin: 0 0 1px;
       color: #111111;
       text-align: left;
     }
@@ -250,7 +250,7 @@ export function invoiceStyles() {
       font-size: 11pt;
       font-weight: 400;
       text-align: left;
-      line-height: 1.35;
+      line-height: 1.2;
     }
   `;
 }
@@ -319,7 +319,7 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
     </div>
   </div>
   <p class="section-title">Project Overview</p>
-  <p style="margin:0 0 3px"><strong>Project Name:</strong> ${escapeHtml(invoice.projectName)}</p>
+  <p style="margin:0 0 1px"><strong>Project Name:</strong> ${escapeHtml(invoice.projectName)}</p>
   <p style="margin:0"><strong>Duration of Project Completion:</strong> ${escapeHtml(invoice.duration)}</p>
   <table class="items">
     <colgroup>

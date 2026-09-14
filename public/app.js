@@ -274,7 +274,7 @@ function invoiceDocumentHtml(invoice, options = {}) {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(invoice.number)}</title>
     <style>
       ${invoiceFontFaceCss(embedFonts)}
-      @page { size: A4; margin: 12mm; }
+      @page { size: A4; margin: 10mm 12mm; }
       @media print {
         html, body { background: #fff !important; color: #111 !important; margin: 0 !important; padding: 0 !important; height: auto !important; }
         * { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
@@ -282,35 +282,35 @@ function invoiceDocumentHtml(invoice, options = {}) {
         .terms { break-before: avoid; page-break-before: avoid; }
       }
       html, body{margin:0;padding:0;height:auto}
-      body{font-family:Aptos,"Aptos Display",Calibri,Arial,sans-serif;color:#111;font-size:11pt;line-height:1.25}
-      p{margin:0;font-size:11pt}
-      .head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+      body{font-family:Aptos,"Aptos Display",Calibri,Arial,sans-serif;color:#111;font-size:11pt;line-height:1.15}
+      p{margin:0;font-size:11pt;line-height:1.15}
+      .head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px}
       img.logo{height:52px;width:auto;max-width:260px;object-fit:contain;object-position:left top;display:block}
-      h1{color:#002060;margin:0;font-size:22pt;font-weight:700}
-      .kind{color:#666;font-size:10pt;font-weight:700;letter-spacing:0.6px;margin-top:3px}
-      .grid{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;row-gap:0;margin:6px 0;align-items:start}
-      table.items{width:100%;border-collapse:separate;border-spacing:2px;background:#fff;table-layout:fixed;font-size:11pt;margin-top:6px}
+      h1{color:#002060;margin:0;font-size:22pt;font-weight:700;line-height:1.05}
+      .kind{color:#666;font-size:10pt;font-weight:700;letter-spacing:0.6px;margin-top:1px}
+      .grid{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;row-gap:0;margin:2px 0;align-items:start}
+      table.items{width:100%;border-collapse:separate;border-spacing:2px;background:#fff;table-layout:fixed;font-size:11pt;margin-top:3px}
       table.items col.col-no{width:8%}
       table.items col.col-desc{width:54%}
       table.items col.col-amt{width:19%}
-      table.items th{background:#c7e6fa;text-align:center;color:#111;font-weight:700;border:none;padding:5px 8px}
-      table.items td{background:#eef7fc;font-weight:400;border:none;padding:4px 8px;vertical-align:middle}
+      table.items th{background:#c7e6fa;text-align:center;color:#111;font-weight:700;border:none;padding:3px 6px}
+      table.items td{background:#eef7fc;font-weight:400;border:none;padding:2px 6px;vertical-align:middle}
       table.items td.desc{text-align:left}
       table.items td.num, table.items th.num{text-align:right;white-space:nowrap}
       table.items td.center, table.items th.center{text-align:center}
-      .blue{color:#002060;font-weight:700;text-decoration:underline;text-underline-offset:2px;font-size:11pt;margin:6px 0 4px}
-      .totals{width:300px;margin:4px 0 0 auto;border-collapse:collapse}
-      .totals td{color:#002060;font-weight:700;text-align:right;padding:1px 0 1px 12px;vertical-align:top;font-size:11pt}
+      .blue{color:#002060;font-weight:700;text-decoration:underline;text-underline-offset:2px;font-size:11pt;margin:4px 0 1px}
+      .totals{width:300px;margin:2px 0 0 auto;border-collapse:collapse}
+      .totals td{color:#002060;font-weight:700;text-align:right;padding:0 0 0 12px;vertical-align:top;font-size:11pt;line-height:1.15}
       .sign{text-align:right}
-      .sign img{height:52px;width:auto;max-width:230px;object-fit:contain;display:block;margin:0 0 4px auto}
-      .line{border-top:2px solid #002060;display:inline-block;min-width:210px;padding-top:3px;color:#002060;font-weight:700;font-size:11pt}
-      .footer{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;margin-top:8px;align-items:start;break-after:avoid;page-break-after:avoid}
-      .terms{text-align:left;margin-top:10px;break-before:avoid;page-break-before:avoid}
-      .terms h2{font-size:11pt;font-weight:700;margin:0 0 2px;color:#111;text-align:left}
-      .terms p{margin:0;font-size:11pt;font-weight:400;text-align:left;line-height:1.3;max-width:none}
-      .heading{font-weight:700;font-size:11pt;margin:0 0 2px}
-      .accept .blue{margin:0;line-height:1.3}
-      .accept-field{margin:0;padding:0;font-size:11pt;font-weight:700;line-height:1.3}
+      .sign img{height:52px;width:auto;max-width:230px;object-fit:contain;display:block;margin:0 0 2px auto}
+      .line{border-top:2px solid #002060;display:inline-block;min-width:210px;padding-top:2px;color:#002060;font-weight:700;font-size:11pt}
+      .footer{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;margin-top:4px;align-items:start;break-after:avoid;page-break-after:avoid}
+      .terms{text-align:left;margin-top:4px;break-before:avoid;page-break-before:avoid}
+      .terms h2{font-size:11pt;font-weight:700;margin:0 0 1px;color:#111;text-align:left}
+      .terms p{margin:0;font-size:11pt;font-weight:400;text-align:left;line-height:1.2;max-width:none}
+      .heading{font-weight:700;font-size:11pt;margin:0 0 1px}
+      .accept .blue{margin:0 0 1px;line-height:1.2}
+      .accept-field{margin:0;padding:0;font-size:11pt;font-weight:700;line-height:1.2}
       td { font-size: 11pt; }
     </style></head><body>
     <div class="head"><img class="logo" src="${logo}" alt="Introis Technologies"><div style="text-align:right"><h1>INVOICE</h1><div class="kind">${escapeHtml(invoice.paymentKind)}</div></div></div>
@@ -368,7 +368,7 @@ function canvasToDataUrl(canvas) {
 }
 
 function addCanvasToPdf(pdf, canvas, addPageFirst) {
-  const margin = 12;
+  const margin = 10;
   const maxW = 210 - margin * 2;
   const maxH = 297 - margin * 2;
   const width = maxW;
@@ -456,7 +456,7 @@ async function downloadInvoicePdf(invoice, filename) {
     doc.body.style.boxSizing = 'border-box';
     doc.body.style.width = '794px';
     doc.body.style.margin = '0';
-    doc.body.style.padding = '32px 45px';
+    doc.body.style.padding = '24px 40px';
     doc.body.style.background = '#fff';
     doc.body.style.height = 'auto';
     doc.body.style.minHeight = '0';
