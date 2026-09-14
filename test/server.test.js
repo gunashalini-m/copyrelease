@@ -84,6 +84,11 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.equal(second.number, 'INTSINV200');
   assert.equal(second.bank.accountType, 'Savings');
   assert.equal(second.lineItems[0].lineTotal, 1000);
+  assert.equal(second.sgst, 0);
+  assert.equal(second.cgst, 0);
+  assert.equal(second.total, 1000);
+  assert.equal(second.taxMode, 'non-gst');
+  assert.equal(second.client.gstin, 'NIL');
 
   const jumped = await fetch(`${url}/api/settings`).then((res) => res.json());
   assert.equal(jumped.nextSequence, 201);
@@ -99,25 +104,42 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      accountType: 'current',
-      projectName: 'Pukra Hospital - Social Media Management',
-      duration: 'Monthly Retainer',
-      client: clients[0],
+      accountType: 'savings',
+      projectName: 'A KOLANDHA MUDALIAR SONS - Social Media Management',
+      duration: 'May 2026 - Monthly Retainer',
+      customFields: [{ label: 'PO number', value: 'AKS-MAY-26' }],
+      layout: { compact: true, termsOnNewPage: false },
+      client: createdClient,
       lineItems: [
         {
-          description: 'Introis team Service Charge\n- Account Management\n- Social Media Management',
+          description: 'Social Media Management charges (from May 18th to May 31st 2026)',
           quantity: 1,
-          unitPrice: 25000,
+          unitPrice: 9333.33,
         },
-        { description: 'Meta Advertisement Charges', quantity: 1, unitPrice: 43000 },
-        { description: 'Gateway Charges', quantity: 1, unitPrice: 3500 },
       ],
     }),
   });
   assert.equal(printPdfRes.status, 200);
   const printPdf = Buffer.from(await printPdfRes.arrayBuffer());
   const pageCount = [...printPdf.toString('latin1').matchAll(/\/Type\s*\/Page(?![s\w])/g)].length;
-  assert.equal(pageCount, 2);
+  assert.equal(pageCount, 1);
+
+  const gstPdfRes = await fetch(`${url}/api/invoices/preview.pdf`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      accountType: 'current',
+      projectName: 'Pukra Hospital - Social Media Management',
+      duration: 'Monthly Retainer',
+      layout: { termsOnNewPage: true },
+      client: clients[0],
+      lineItems: [{ description: 'Service Charge', quantity: 1, unitPrice: 25000 }],
+    }),
+  });
+  assert.equal(gstPdfRes.status, 200);
+  const gstPdf = Buffer.from(await gstPdfRes.arrayBuffer());
+  const gstPages = [...gstPdf.toString('latin1').matchAll(/\/Type\s*\/Page(?![s\w])/g)].length;
+  assert.ok(gstPages >= 2);
 
   const fileRes = await fetch(`${url}/download`);
   assert.equal(fileRes.status, 200);
@@ -142,4 +164,7 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.ok(page.includes('html2canvas'));
   assert.ok(page.includes('srcdoc'));
   assert.ok(page.includes('STANDALONE'));
+  assert.ok(page.includes('Custom fields'));
+  assert.ok(page.includes('Savings — Non-GST invoice'));
+  assert.ok(page.includes('Use leftover space on page 1'));
 });

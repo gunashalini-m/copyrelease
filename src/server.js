@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { computeTotals, formatInvoiceNumber } from './money.js';
+import { computeTotals, formatInvoiceNumber, taxRatesForAccount } from './money.js';
 import { renderInvoicePdf } from './pdf.js';
 import { buildStandaloneHtml } from './standalone.js';
 import { createStore } from './store.js';
@@ -14,6 +14,33 @@ function requiredString(value, field) {
     return `${field} is required`;
   }
   return null;
+}
+
+function normalizeCustomFields(fields) {
+  if (!Array.isArray(fields)) {
+    return [];
+  }
+  return fields
+    .map((field) => ({
+      label: String(field?.label ?? '').trim(),
+      value: String(field?.value ?? '').trim(),
+    }))
+    .filter((field) => field.label || field.value);
+}
+
+function normalizeLayout(layout = {}) {
+  const fontSize = Number(layout.fontSize) || 11;
+  const descWidth = Number(layout.descWidth) || 54;
+  return {
+    fontSize: Math.min(13, Math.max(9, fontSize)),
+    compact: layout.compact !== false,
+    termsOnNewPage: Boolean(layout.termsOnNewPage),
+    descWidth: Math.min(70, Math.max(40, descWidth)),
+    showCompanyGstin: layout.showCompanyGstin !== false,
+    showRecipientGstin: layout.showRecipientGstin !== false,
+    showAccountType: layout.showAccountType !== false,
+    showBankBranch: layout.showBankBranch !== false,
+  };
 }
 
 function buildInvoiceRecord(store, payload, { existing } = {}) {
@@ -35,7 +62,11 @@ function buildInvoiceRecord(store, payload, { existing } = {}) {
     throw Object.assign(new Error('at least one line item is required'), { status: 400 });
   }
 
-  const totals = computeTotals(lineItems);
+  const rates = taxRatesForAccount(accountType);
+  const totals = computeTotals(lineItems, rates.cgstRate, rates.sgstRate);
+  const clientGstinRaw = String(payload.client?.gstin ?? '').trim();
+  const clientGstin =
+    accountType === 'savings' && !clientGstinRaw ? 'NIL' : clientGstinRaw;
   const sequence = existing
     ? existing.sequence
     : Number(payload.sequence ?? settings.nextSequence);
@@ -58,13 +89,16 @@ function buildInvoiceRecord(store, payload, { existing } = {}) {
     company: { ...settings.company },
     signatory: { ...settings.signatory },
     terms: [...settings.terms],
+    taxMode: rates.taxMode,
+    customFields: normalizeCustomFields(payload.customFields),
+    layout: normalizeLayout(payload.layout),
     client: {
       id: payload.client?.id || null,
       contactName: String(payload.client.contactName).trim(),
       companyName: String(payload.client.companyName).trim(),
       address: String(payload.client.address ?? '').trim(),
       email: String(payload.client.email ?? '').trim(),
-      gstin: String(payload.client.gstin ?? '').trim(),
+      gstin: clientGstin,
     },
     lineItems: totals.items.map((item) => ({
       description: String(item.description ?? '').trim(),

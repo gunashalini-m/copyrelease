@@ -157,6 +157,55 @@ function lineItems() {
   }));
 }
 
+function addCustomField(field = { label: '', value: '' }) {
+  const row = document.createElement('div');
+  row.className = 'custom-row';
+  row.innerHTML = `
+    <label>Label <input class="custom-label" placeholder="e.g. PO number"></label>
+    <label>Value <textarea class="custom-value" rows="2"></textarea></label>
+    <button type="button" class="ghost remove" aria-label="Remove field">×</button>
+  `;
+  row.querySelector('.custom-label').value = field.label ?? '';
+  row.querySelector('.custom-value').value = field.value ?? '';
+  row.querySelector('.remove').addEventListener('click', () => {
+    row.remove();
+    refreshPreview();
+  });
+  row.querySelectorAll('input, textarea').forEach((input) => input.addEventListener('input', refreshPreview));
+  document.getElementById('custom-fields').append(row);
+}
+
+function customFields() {
+  return [...document.querySelectorAll('#custom-fields .custom-row')].map((row) => ({
+    label: row.querySelector('.custom-label').value,
+    value: row.querySelector('.custom-value').value,
+  }));
+}
+
+function readLayout() {
+  return {
+    fontSize: Number(document.getElementById('layout-font').value),
+    descWidth: Number(document.getElementById('layout-desc').value),
+    compact: document.getElementById('layout-compact').value === 'compact',
+    termsOnNewPage: document.getElementById('layout-terms').value === 'new',
+    showCompanyGstin: document.getElementById('layout-company-gstin').checked,
+    showRecipientGstin: document.getElementById('layout-recipient-gstin').checked,
+    showAccountType: document.getElementById('layout-account-type').checked,
+    showBankBranch: document.getElementById('layout-bank-branch').checked,
+  };
+}
+
+function applyLayout(layout = {}) {
+  document.getElementById('layout-font').value = String(layout.fontSize || 11);
+  document.getElementById('layout-desc').value = String(layout.descWidth || 54);
+  document.getElementById('layout-compact').value = layout.compact === false ? 'comfortable' : 'compact';
+  document.getElementById('layout-terms').value = layout.termsOnNewPage ? 'new' : 'same';
+  document.getElementById('layout-company-gstin').checked = layout.showCompanyGstin !== false;
+  document.getElementById('layout-recipient-gstin').checked = layout.showRecipientGstin !== false;
+  document.getElementById('layout-account-type').checked = layout.showAccountType !== false;
+  document.getElementById('layout-bank-branch').checked = layout.showBankBranch !== false;
+}
+
 function formPayload() {
   return {
     sequence: Number(document.getElementById('sequence').value),
@@ -165,6 +214,8 @@ function formPayload() {
     accountType: document.getElementById('account-type').value,
     projectName: document.getElementById('project-name').value,
     duration: document.getElementById('duration').value,
+    customFields: customFields(),
+    layout: readLayout(),
     client: {
       id: document.getElementById('client-select').value || null,
       contactName: document.getElementById('client-contact').value,
@@ -180,9 +231,13 @@ function formPayload() {
 function updateBankSummary() {
   const type = document.getElementById('account-type').value;
   const bank = settings.banks[type];
+  const gstNote =
+    type === 'savings'
+      ? 'Non-GST invoice — SGST and CGST default to ₹0.00'
+      : 'GST invoice — SGST 9% + CGST 9%';
   document.getElementById('bank-summary').textContent = bank
-    ? `${bank.accountType} · ${bank.bankName}\n${bank.holderName} · ${bank.accountNumber || '(add account number in Settings)'}\nIFSC ${bank.ifsc} · ${bank.branch}`
-    : '';
+    ? `${bank.accountType} · ${bank.bankName}\n${bank.holderName} · ${bank.accountNumber || '(add account number in Settings)'}\nIFSC ${bank.ifsc} · ${bank.branch}\n${gstNote}`
+    : gstNote;
 }
 
 function updateNumberFields() {
@@ -198,11 +253,15 @@ async function refreshPreview() {
   updateBankSummary();
   const items = lineItems();
   const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-  const sgst = Math.round(subtotal * 0.09 * 100) / 100;
-  const cgst = Math.round(subtotal * 0.09 * 100) / 100;
+  const gst = document.getElementById('account-type').value !== 'savings';
+  const rate = gst ? 0.09 : 0;
+  const sgst = Math.round(subtotal * rate * 100) / 100;
+  const cgst = Math.round(subtotal * rate * 100) / 100;
+  const rateLabel = gst ? '9%' : '0%';
   document.getElementById('totals').innerHTML = `
+    ${gst ? 'GST invoice' : 'Non-GST invoice'}<br>
     Total without taxes ${formatInr(subtotal)}<br>
-    SGST @9% ${formatInr(sgst)} · CGST @9% ${formatInr(cgst)}<br>
+    SGST @${rateLabel} ${formatInr(sgst)} · CGST @${rateLabel} ${formatInr(cgst)}<br>
     Total invoice value ${formatInr(subtotal + sgst + cgst)}
   `;
 
@@ -246,10 +305,29 @@ function invoiceDocumentHtml(invoice, options = {}) {
   const embedFonts = options.embedFonts !== false;
   const logo = window.__ASSETS?.logo || 'assets/logo.png';
   const signature = window.__ASSETS?.signature || 'assets/signature.png';
+  const layout = invoice.layout || {};
+  const fontSize = Number(layout.fontSize) || 11;
+  const compact = layout.compact !== false;
+  const descWidth = Number(layout.descWidth) || 54;
+  const amtWidth = (100 - 8 - descWidth) / 2;
+  const termsOnNewPage = Boolean(layout.termsOnNewPage);
+  const showCompanyGstin = layout.showCompanyGstin !== false;
+  const showRecipientGstin = layout.showRecipientGstin !== false;
+  const showAccountType = layout.showAccountType !== false;
+  const showBankBranch = layout.showBankBranch !== false;
+  const sgstRate = invoice.sgstRate ?? 9;
+  const cgstRate = invoice.cgstRate ?? 9;
   const rows = invoice.lineItems
     .map(
       (item, index) =>
         `<tr><td class="center">${index + 1}</td><td class="desc">${escapeHtml(item.description).replaceAll('\n', '<br>')}</td><td class="num">${formatInr(item.unitPrice)}</td><td class="num">${formatInr(item.lineTotal)}</td></tr>`,
+    )
+    .join('');
+  const customFieldsHtml = (invoice.customFields || [])
+    .filter((field) => field.label || field.value)
+    .map(
+      (field) =>
+        `<p><strong>${escapeHtml(field.label)}${field.label ? ':' : ''}</strong> ${escapeHtml(field.value).replaceAll('\n', '<br>')}</p>`,
     )
     .join('');
   const address = (value) => escapeHtml(value).replaceAll('\n', '<br>');
@@ -263,61 +341,62 @@ function invoiceDocumentHtml(invoice, options = {}) {
         body, p, td, th, h1, h2, div { color: inherit; }
       }
       html, body{margin:0;padding:0}
-      body{font-family:Aptos,"Aptos Display",Calibri,Arial,sans-serif;color:#111;font-size:11pt;line-height:1.3}
-      p{margin:0;font-size:11pt}
-      .head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+      body{font-family:Aptos,"Aptos Display",Calibri,Arial,sans-serif;color:#111;font-size:${fontSize}pt;line-height:${compact ? 1.25 : 1.35}}
+      p{margin:0;font-size:${fontSize}pt}
+      .head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:${compact ? 6 : 10}px}
       img.logo{height:52px;width:auto;max-width:260px;object-fit:contain;object-position:left top;display:block}
       h1{color:#002060;margin:0;font-size:22pt;font-weight:700}
       .kind{color:#666;font-size:10pt;font-weight:700;letter-spacing:0.6px;margin-top:3px}
-      .grid{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;row-gap:0;margin:8px 0;align-items:start}
-      table.items{width:100%;border-collapse:separate;border-spacing:2px;background:#fff;table-layout:fixed;font-size:11pt;margin-top:6px}
+      .grid{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;row-gap:0;margin:${compact ? 6 : 8}px 0;align-items:start}
+      table.items{width:100%;border-collapse:separate;border-spacing:2px;background:#fff;table-layout:fixed;font-size:${fontSize}pt;margin-top:6px}
       table.items col.col-no{width:8%}
-      table.items col.col-desc{width:54%}
-      table.items col.col-amt{width:19%}
+      table.items col.col-desc{width:${descWidth}%}
+      table.items col.col-amt{width:${amtWidth}%}
       table.items th{background:#c7e6fa;text-align:center;color:#111;font-weight:700;border:none;padding:5px 8px}
-      table.items td{background:#eef7fc;font-weight:400;border:none;padding:6px 8px;vertical-align:middle}
+      table.items td{background:#eef7fc;font-weight:400;border:none;padding:${compact ? 4 : 6}px 8px;vertical-align:middle}
       table.items td.desc{text-align:left}
       table.items td.num, table.items th.num{text-align:right;white-space:nowrap}
       table.items td.center, table.items th.center{text-align:center}
-      .blue{color:#002060;font-weight:700;text-decoration:underline;text-underline-offset:2px;font-size:11pt;margin:10px 0 4px}
+      .blue{color:#002060;font-weight:700;text-decoration:underline;text-underline-offset:2px;font-size:${fontSize}pt;margin:${compact ? 6 : 10}px 0 4px}
       .totals{width:300px;margin:4px 0 0 auto;border-collapse:collapse}
-      .totals td{color:#002060;font-weight:700;text-align:right;padding:1px 0 1px 12px;vertical-align:top;font-size:11pt}
+      .totals td{color:#002060;font-weight:700;text-align:right;padding:1px 0 1px 12px;vertical-align:top;font-size:${fontSize}pt}
       .sign{text-align:right}
       .sign img{height:52px;width:auto;max-width:230px;object-fit:contain;display:block;margin:0 0 4px auto}
-      .line{border-top:2px solid #002060;display:inline-block;min-width:210px;padding-top:3px;color:#002060;font-weight:700;font-size:11pt}
-      .footer{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;margin-top:12px;align-items:start;page-break-inside:avoid;break-inside:avoid}
+      .line{border-top:2px solid #002060;display:inline-block;min-width:210px;padding-top:3px;color:#002060;font-weight:700;font-size:${fontSize}pt}
+      .footer{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;margin-top:${compact ? 8 : 12}px;align-items:start;page-break-inside:avoid;break-inside:avoid}
       .page-break{page-break-before:always}
-      .terms{text-align:left}
-      .terms h2{font-size:11pt;font-weight:700;margin:0 0 2px;color:#111;text-align:left}
-      .terms p{margin:0;font-size:11pt;font-weight:400;text-align:left;line-height:1.3;max-width:none}
-      .heading{font-weight:700;font-size:11pt;margin:0 0 2px}
+      .terms{text-align:left;margin-top:${termsOnNewPage ? 0 : 14}px}
+      .terms h2{font-size:${fontSize}pt;font-weight:700;margin:0 0 2px;color:#111;text-align:left}
+      .terms p{margin:0;font-size:${fontSize}pt;font-weight:400;text-align:left;line-height:1.3;max-width:none}
+      .heading{font-weight:700;font-size:${fontSize}pt;margin:0 0 2px}
       .accept .blue{margin:0;line-height:1.3}
-      .accept-field{margin:0;padding:0;font-size:11pt;font-weight:700;line-height:1.3}
-      td { font-size: 11pt; }
+      .accept-field{margin:0;padding:0;font-size:${fontSize}pt;font-weight:700;line-height:1.3}
+      td { font-size: ${fontSize}pt; }
     </style></head><body>
     <div class="head"><img class="logo" src="${logo}" alt="Introis Technologies"><div style="text-align:right"><h1>INVOICE</h1><div class="kind">${escapeHtml(invoice.paymentKind)}</div></div></div>
     <div class="grid">
-      <div><p class="heading"><b>From</b></p>${escapeHtml(invoice.company.name)}<br>${address(invoice.company.address)}<br>Phone: ${escapeHtml(invoice.company.phone)}<br>Email: ${escapeHtml(invoice.company.email)}<br>GSTIN: ${escapeHtml(invoice.company.gstin)}</div>
-      <div><p class="heading"><b>Bill To</b></p>${escapeHtml(invoice.client.contactName)}<br>${escapeHtml(invoice.client.companyName)}<br>${address(invoice.client.address)}<br>Email: ${escapeHtml(invoice.client.email)}<br>GSTIN of Recipient: ${escapeHtml(invoice.client.gstin)}</div>
+      <div><p class="heading"><b>From</b></p>${escapeHtml(invoice.company.name)}<br>${address(invoice.company.address)}<br>Phone: ${escapeHtml(invoice.company.phone)}<br>Email: ${escapeHtml(invoice.company.email)}${showCompanyGstin ? `<br>GSTIN: ${escapeHtml(invoice.company.gstin)}` : ''}</div>
+      <div><p class="heading"><b>Bill To</b></p>${escapeHtml(invoice.client.contactName)}<br>${escapeHtml(invoice.client.companyName)}<br>${address(invoice.client.address)}<br>Email: ${escapeHtml(invoice.client.email)}${showRecipientGstin ? `<br>GSTIN of Recipient: ${escapeHtml(invoice.client.gstin)}` : ''}</div>
     </div>
     <div class="grid">
       <div><strong>Invoice Number:</strong> ${escapeHtml(invoice.number)}<br><strong>Invoice Date:</strong> ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</div>
-      <div><p class="heading"><b>Bank Details</b></p>Bank Name: ${escapeHtml(invoice.bank.bankName)}<br>A/C Holder Name: ${escapeHtml(invoice.bank.holderName)}<br>Account number: ${escapeHtml(invoice.bank.accountNumber)}<br>Bank IFSC Code: ${escapeHtml(invoice.bank.ifsc)}<br>Account Type: ${escapeHtml(invoice.bank.accountType)}<br>Account Branch: ${escapeHtml(invoice.bank.branch)}</div>
+      <div><p class="heading"><b>Bank Details</b></p>Bank Name: ${escapeHtml(invoice.bank.bankName)}<br>A/C Holder Name: ${escapeHtml(invoice.bank.holderName)}<br>Account number: ${escapeHtml(invoice.bank.accountNumber)}<br>Bank IFSC Code: ${escapeHtml(invoice.bank.ifsc)}${showAccountType ? `<br>Account Type: ${escapeHtml(invoice.bank.accountType)}` : ''}${showBankBranch ? `<br>Account Branch: ${escapeHtml(invoice.bank.branch)}` : ''}</div>
     </div>
     <p class="blue">PROJECT OVERVIEW</p>
     <p><strong>Project Name:</strong> ${escapeHtml(invoice.projectName)}<br><strong>Duration of Project Completion:</strong> ${escapeHtml(invoice.duration)}</p>
+    ${customFieldsHtml}
     <table class="items"><colgroup><col class="col-no"><col class="col-desc"><col class="col-amt"><col class="col-amt"></colgroup><thead><tr><th class="center">S.No</th><th>Description</th><th class="num">Unit Price</th><th class="num">Line Total</th></tr></thead><tbody>${rows}</tbody></table>
     <table class="totals">
       <tr><td>Total Without<br>Taxes</td><td>${formatInr(invoice.subtotal)}</td></tr>
-      <tr><td>SGST @9%</td><td>${formatInr(invoice.sgst)}</td></tr>
-      <tr><td>CGST @9%</td><td>${formatInr(invoice.cgst)}</td></tr>
+      <tr><td>SGST @${sgstRate}%</td><td>${formatInr(invoice.sgst)}</td></tr>
+      <tr><td>CGST @${cgstRate}%</td><td>${formatInr(invoice.cgst)}</td></tr>
       <tr><td>Total Invoice<br>Value</td><td>${formatInr(invoice.total)}</td></tr>
     </table>
     <div class="footer">
       <div class="accept"><p class="blue">CLIENT ACCEPTANCE</p><p class="accept-field"><b>Client Name:</b></p><p class="accept-field"><b>Date:</b></p><p class="accept-field"><b>Signature:</b></p></div>
       <div class="sign"><img src="${signature}" alt="Authorised signature"><div class="line">AUTHORISED SIGNATURE</div><p>Name: ${escapeHtml(invoice.signatory.name)}<br>Designation: ${escapeHtml(invoice.signatory.designation)}<br>Date: ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</p></div>
     </div>
-    <div class="page-break terms"><h2>Terms and Conditions</h2>${(invoice.terms || []).map((term) => `<p>${escapeHtml(term)}</p>`).join('')}</div>
+    <div class="${termsOnNewPage ? 'page-break terms' : 'terms'}"><h2>Terms and Conditions</h2>${(invoice.terms || []).map((term) => `<p>${escapeHtml(term)}</p>`).join('')}</div>
   </body></html>`;
 }
 
@@ -439,13 +518,14 @@ async function downloadInvoicePdf(invoice, filename) {
     doc.body.style.padding = '45px';
     doc.body.style.background = '#fff';
 
+    const termsOnNewPage = Boolean(invoice.layout?.termsOnNewPage);
     const terms = doc.querySelector('.terms');
-    if (terms) terms.style.display = 'none';
+    if (termsOnNewPage && terms) terms.style.display = 'none';
     const page1 = await captureElement(doc.body);
     const pdf = new JsPDF({ unit: 'mm', format: 'a4', compress: true });
     addCanvasToPdf(pdf, page1, false);
 
-    if (terms) {
+    if (termsOnNewPage && terms) {
       [...doc.body.children].forEach((node) => {
         if (node !== terms) node.style.display = 'none';
       });
@@ -516,7 +596,7 @@ async function loadInvoices() {
           <td>${invoice.number}</td>
           <td>${invoice.invoiceDate}</td>
           <td>${invoice.client.companyName}</td>
-          <td>${invoice.bank.accountType}</td>
+          <td>${invoice.bank.accountType}${invoice.taxMode === 'non-gst' ? ' · Non-GST' : ' · GST'}</td>
           <td>${formatInr(invoice.total)}</td>
           <td>
             <button type="button" class="ghost" data-pdf="${invoice.id}" data-name="${invoice.number}">Download PDF</button>
@@ -570,8 +650,19 @@ document.getElementById('add-item').addEventListener('click', () => {
   addItem();
   refreshPreview();
 });
+document.getElementById('add-custom-field').addEventListener('click', () => {
+  addCustomField();
+  refreshPreview();
+});
+document.querySelector('.preview-tools').addEventListener('change', refreshPreview);
 document.getElementById('sequence').addEventListener('input', refreshPreview);
-document.getElementById('account-type').addEventListener('change', refreshPreview);
+document.getElementById('account-type').addEventListener('change', () => {
+  if (document.getElementById('account-type').value === 'savings') {
+    const gstin = document.getElementById('client-gstin');
+    if (!gstin.value.trim()) gstin.value = 'NIL';
+  }
+  refreshPreview();
+});
 document.getElementById('invoice-form').addEventListener('input', () => {
   window.clearTimeout(window.__previewTimer);
   window.__previewTimer = setTimeout(refreshPreview, 250);
@@ -698,6 +789,9 @@ document.getElementById('invoice-rows').addEventListener('click', async (event) 
   document.getElementById('duration').value = invoice.duration;
   document.getElementById('items').innerHTML = '';
   invoice.lineItems.forEach((item) => addItem(item));
+  document.getElementById('custom-fields').innerHTML = '';
+  (invoice.customFields || []).forEach((field) => addCustomField(field));
+  applyLayout(invoice.layout);
   showView('create');
   refreshPreview();
 });

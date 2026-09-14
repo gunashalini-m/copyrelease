@@ -1,6 +1,6 @@
 # Introis Invoice Generator
 
-Web app for creating GST invoices for Introis Technologies.
+Web app for creating GST and non-GST invoices for Introis Technologies.
 
 ## Download (no npm needed)
 
@@ -19,8 +19,8 @@ Unzip, then double-click **`index.html`**. Chrome or Edge. You should see a navy
 
 - Sequential invoice numbers (`INTSINV099`, then `INTSINV100`, …) with a manually editable next sequence
 - Client directory: add, edit, delete, and prefill Bill To
-- Current or Savings bank account on each invoice (full account records in Settings)
-- CGST 9% + SGST 9%
+- Current account = GST invoice (CGST 9% + SGST 9%); Savings account = non-GST invoice (GST amounts ₹0.00)
+- Custom fields and layout controls next to the live preview (including Terms on page 1)
 - Saved invoice history and PDF download matching the organisation layout
 - **Download app** in the header: a single HTML file you can save and open later without Node. Clients, settings, and invoices are stored in that browser. Use **Download PDF** (or Print → Save as PDF in the offline file) to keep a copy of each invoice.
 

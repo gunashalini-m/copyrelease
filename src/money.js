@@ -2,6 +2,14 @@ export function roundMoney(value) {
   return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 }
 
+export function taxRatesForAccount(accountType) {
+  const type = String(accountType || 'current').toLowerCase();
+  if (type === 'savings') {
+    return { sgstRate: 0, cgstRate: 0, taxMode: 'non-gst' };
+  }
+  return { sgstRate: 9, cgstRate: 9, taxMode: 'gst' };
+}
+
 export function computeTotals(lineItems, cgstRate = 9, sgstRate = 9) {
   const items = (lineItems ?? []).map((item) => {
     const quantity = Number(item.quantity) || 0;

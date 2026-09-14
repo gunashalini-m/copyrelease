@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { computeTotals, formatInvoiceNumber, formatInr } from '../src/money.js';
+import { computeTotals, formatInvoiceNumber, formatInr, taxRatesForAccount } from '../src/money.js';
 
 test('indian rupee grouping and gst totals match the sample invoice', () => {
   const totals = computeTotals([
@@ -15,6 +15,19 @@ test('indian rupee grouping and gst totals match the sample invoice', () => {
   assert.equal(totals.total, 17366.06);
   assert.equal(formatInr(totals.subtotal), '₹14,717.00');
   assert.equal(formatInr(9167), '₹9,167.00');
+});
+
+test('savings / non-gst invoices keep sgst and cgst at zero', () => {
+  const rates = taxRatesForAccount('savings');
+  assert.equal(rates.taxMode, 'non-gst');
+  assert.equal(rates.sgstRate, 0);
+  assert.equal(rates.cgstRate, 0);
+  const totals = computeTotals([{ description: 'SMM', quantity: 1, unitPrice: 9333.33 }], rates.cgstRate, rates.sgstRate);
+  assert.equal(totals.subtotal, 9333.33);
+  assert.equal(totals.sgst, 0);
+  assert.equal(totals.cgst, 0);
+  assert.equal(totals.total, 9333.33);
+  assert.equal(taxRatesForAccount('current').taxMode, 'gst');
 });
 
 test('invoice numbers pad the sequence', () => {

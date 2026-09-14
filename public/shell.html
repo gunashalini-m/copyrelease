@@ -52,8 +52,8 @@
             </label>
             <label>Bank account
               <select id="account-type">
-                <option value="current">Current</option>
-                <option value="savings">Savings</option>
+                <option value="current">Current — GST invoice</option>
+                <option value="savings">Savings — Non-GST invoice</option>
               </select>
             </label>
             <label>Client
@@ -110,6 +110,50 @@
 
         <aside class="preview-wrap">
           <h2>Live preview</h2>
+          <div class="preview-tools">
+            <div class="panel-head compact">
+              <h3>Custom fields</h3>
+              <button type="button" id="add-custom-field" class="secondary">Add field</button>
+            </div>
+            <p class="hint">These lines appear under Project Overview on the invoice.</p>
+            <div id="custom-fields"></div>
+            <h3>Layout</h3>
+            <div class="layout-grid">
+              <label>Text size
+                <select id="layout-font">
+                  <option value="10">Small (10pt)</option>
+                  <option value="11" selected>Default (11pt)</option>
+                  <option value="12">Large (12pt)</option>
+                  <option value="13">Extra large (13pt)</option>
+                </select>
+              </label>
+              <label>Description column
+                <select id="layout-desc">
+                  <option value="46">Narrower</option>
+                  <option value="54" selected>Default</option>
+                  <option value="62">Wider</option>
+                </select>
+              </label>
+              <label>Spacing
+                <select id="layout-compact">
+                  <option value="compact" selected>Compact (fit terms on page 1)</option>
+                  <option value="comfortable">Comfortable</option>
+                </select>
+              </label>
+              <label>Terms
+                <select id="layout-terms">
+                  <option value="same" selected>Use leftover space on page 1</option>
+                  <option value="new">Start on a new page</option>
+                </select>
+              </label>
+            </div>
+            <div class="layout-toggles">
+              <label class="check"><input type="checkbox" id="layout-company-gstin" checked> Show company GSTIN</label>
+              <label class="check"><input type="checkbox" id="layout-recipient-gstin" checked> Show recipient GSTIN</label>
+              <label class="check"><input type="checkbox" id="layout-account-type" checked> Show account type</label>
+              <label class="check"><input type="checkbox" id="layout-bank-branch" checked> Show bank branch</label>
+            </div>
+          </div>
           <iframe id="live-preview" title="Invoice preview"></iframe>
         </aside>
       </div>
