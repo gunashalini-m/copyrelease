@@ -85,7 +85,7 @@ export function invoiceStyles() {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 2px;
+      margin: 0;
     }
     .logo {
       display: block;
@@ -111,12 +111,14 @@ export function invoiceStyles() {
       letter-spacing: 0.6px;
       font-weight: 700;
     }
+    .section { margin-top: 20px; }
+    .section p { margin: 0; }
     .two-col {
       display: grid;
       grid-template-columns: 1fr 1fr;
       column-gap: 48px;
       align-items: start;
-      margin-bottom: 2px;
+      margin: 0;
     }
     .label,
     .bank-title {
@@ -136,7 +138,7 @@ export function invoiceStyles() {
       color: ${HEADING_BLUE};
       font-weight: 700;
       font-size: 11pt;
-      margin: 4px 0 1px;
+      margin: 0 0 2px;
       text-transform: uppercase;
       text-decoration: underline;
       text-underline-offset: 2px;
@@ -146,7 +148,7 @@ export function invoiceStyles() {
       border-collapse: separate;
       border-spacing: 2px;
       background: #ffffff;
-      margin-top: 3px;
+      margin-top: 0;
       table-layout: fixed;
       font-size: 11pt;
     }
@@ -192,7 +194,7 @@ export function invoiceStyles() {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 24px;
-      margin-top: 4px;
+      margin-top: 0;
       align-items: start;
       page-break-inside: avoid;
       break-inside: avoid;
@@ -233,7 +235,7 @@ export function invoiceStyles() {
     .sign p { margin: 2px 0 0; font-size: 11pt; font-weight: 400; }
     .terms {
       text-align: left;
-      margin-top: 4px;
+      margin-top: 0;
       break-before: avoid;
       page-break-before: avoid;
     }
@@ -285,7 +287,7 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
       <p class="invoice-kind">${escapeHtml(invoice.paymentKind || 'CASH / CREDIT')}</p>
     </div>
   </div>
-  <div class="two-col">
+  <div class="section two-col">
     <div class="block">
       <p class="label"><b>From</b></p>
       <p><strong>${escapeHtml(invoice.company.name)}</strong></p>
@@ -303,7 +305,7 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
       <p>GSTIN of Recipient: ${escapeHtml(invoice.client.gstin)}</p>
     </div>
   </div>
-  <div class="two-col">
+  <div class="section two-col">
     <div>
       <p class="meta-row"><strong>Invoice Number:</strong> ${escapeHtml(number)}</p>
       <p class="meta-row"><strong>Invoice Date:</strong> ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</p>
@@ -318,9 +320,15 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
       <p>Account Branch: ${escapeHtml(invoice.bank.branch)}</p>
     </div>
   </div>
-  <p class="section-title">Project Overview</p>
-  <p style="margin:0 0 1px"><strong>Project Name:</strong> ${escapeHtml(invoice.projectName)}</p>
-  <p style="margin:0"><strong>Duration of Project Completion:</strong> ${escapeHtml(invoice.duration)}</p>
+  <div class="section">
+    <p class="section-title">Project Title</p>
+    <p>${escapeHtml(invoice.projectName)}</p>
+  </div>
+  <div class="section">
+    <p class="section-title">Duration of Project Completion</p>
+    <p>${escapeHtml(invoice.duration)}</p>
+  </div>
+  <div class="section">
   <table class="items">
     <colgroup>
       <col class="col-no">
@@ -344,7 +352,8 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
     <tr><td class="lab">CGST @${cgstRate}%</td><td class="amt">${formatInr(invoice.cgst)}</td></tr>
     <tr><td class="lab">Total Invoice<br>Value</td><td class="amt">${formatInr(invoice.total)}</td></tr>
   </table>
-  <div class="footer-grid">
+  </div>
+  <div class="section footer-grid">
     <div class="accept">
       <p class="section-title">Client Acceptance</p>
       <p class="accept-field"><b>Client Name:</b></p>
@@ -359,9 +368,9 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
       Date: ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</p>
     </div>
   </div>
-  <div class="terms">
+  <div class="section terms">
     <h2>Terms and Conditions</h2>
-    ${(invoice.terms ?? []).map((term) => `<p>${escapeHtml(term)}</p>`).join('')}
+    ${(invoice.terms ?? []).map((term, index) => `<p>${index + 1}. ${escapeHtml(term)}</p>`).join('')}
   </div>
 </body>
 </html>`;
