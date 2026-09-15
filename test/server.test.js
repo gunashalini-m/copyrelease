@@ -185,7 +185,10 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.ok(page.includes('.modal[hidden]'));
   assert.ok(page.includes('Add client'));
   assert.ok(page.includes('client-rows'));
-  assert.ok(page.includes('nav-open'));
+  assert.ok(page.includes('Save to Drive'));
+  assert.ok(page.includes('accounts.google.com/gsi/client'));
+  assert.ok(page.includes('uploadPdfToDrive'));
+  assert.ok(page.includes('s-google-client-id'));
   assert.ok(!page.includes('Custom fields'));
   assert.ok(!page.includes('page-break terms'));
 });

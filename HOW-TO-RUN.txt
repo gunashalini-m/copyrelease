@@ -4,8 +4,22 @@ Introis Invoice Generator
 Double-click this file (full UI, no npm):
   index.html
 
-Click **Download PDF** to save the invoice as a PDF file. No print preview
-appears. Fill in the client and at least one line item first.
+Click **Save to Drive** after connecting Gmail in Settings to upload the PDF
+to a Drive folder you choose.
+
+Google Drive
+------------
+1. Open https://console.cloud.google.com and create a project
+2. Enable the Google Drive API
+3. APIs & Services → OAuth consent screen (External is fine; add your Gmail as a test user)
+4. Create an OAuth client ID of type Web application
+5. Add Authorized JavaScript origins for how you open the app, for example:
+     http://127.0.0.1:4173
+     http://localhost:3000
+6. Paste the Client ID into Settings → Google Drive → Connect Gmail
+7. Choose Drive folder, then use Save to Drive on a new or saved invoice
+
+Google sign-in needs Chrome or Edge over http://, not a double-clicked file:// page.
 
 Bank account:
   Current  = GST invoice (SGST 9% + CGST 9%)

@@ -38,6 +38,10 @@ export const defaultSettings = {
     'Project work will be done only during the business days (Monday to Friday)',
     'All communication will be intimated through emails as well as messages or calls',
   ],
+  googleClientId: '',
+  googleEmail: '',
+  driveFolderId: '',
+  driveFolderName: '',
 };
 
 export const defaultClients = [

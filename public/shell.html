@@ -125,6 +125,7 @@
               <div class="actions">
                 <button type="submit">Save invoice</button>
                 <button type="button" id="download-pdf" class="secondary">Download PDF</button>
+                <button type="button" id="save-drive" class="secondary">Save to Drive</button>
                 <button type="button" id="download-word" class="secondary">Download Word</button>
                 <button type="button" id="load-sample" class="ghost">Load sample values</button>
               </div>
@@ -204,6 +205,19 @@
               <label>Zero padding <input id="s-pad" type="number" min="1" max="8" required></label>
             </div>
 
+            <h3>Google Drive</h3>
+            <p class="hint">Connect the Gmail account that owns your Drive, then choose a folder. Invoices are uploaded as PDFs. Create a Google Cloud OAuth Client ID (Web application), enable the Drive API, and add this page’s origin (for example http://127.0.0.1:4173) under Authorized JavaScript origins. Open the app in Chrome or Edge over http:// — Google sign-in does not work from a double-clicked file:// page.</p>
+            <label>OAuth Client ID
+              <input id="s-google-client-id" placeholder="123456789-abc.apps.googleusercontent.com" autocomplete="off">
+            </label>
+            <p class="hint" id="google-status">Not connected</p>
+            <p class="hint" id="drive-folder-status">No Drive folder selected</p>
+            <div class="actions">
+              <button type="button" id="connect-google" class="secondary">Connect Gmail</button>
+              <button type="button" id="choose-drive-folder" class="secondary">Choose Drive folder</button>
+              <button type="button" id="disconnect-google" class="ghost">Disconnect</button>
+            </div>
+
             <h3>From / company</h3>
             <div class="grid-2">
               <label>Name <input id="s-name" required></label>
@@ -256,7 +270,21 @@
     </div>
   </div>
 
+  <div class="modal" id="drive-folder-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="drive-folder-title">
+      <div class="panel-head">
+        <h2 id="drive-folder-title">Choose Drive folder</h2>
+        <button type="button" class="ghost" id="close-drive-folder-modal" aria-label="Close">×</button>
+      </div>
+      <label>Filter folders
+        <input id="drive-folder-filter" placeholder="Search by name">
+      </label>
+      <div id="drive-folder-list" class="folder-list"></div>
+    </div>
+  </div>
+
   <div id="toast" hidden></div>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="vendor/html2canvas.min.js"></script>
   <script src="vendor/jspdf.umd.min.js"></script>
   <script src="app.js"></script>

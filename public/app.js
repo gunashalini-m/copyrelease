@@ -126,6 +126,254 @@ function closeClientModal() {
   document.getElementById('client-form-title').textContent = 'Add client';
 }
 
+let cachedDriveFolders = [];
+const DRIVE_SCOPES = [
+  'https://www.googleapis.com/auth/drive.file',
+  'https://www.googleapis.com/auth/drive.metadata.readonly',
+  'https://www.googleapis.com/auth/userinfo.email',
+].join(' ');
+
+function readGoogleToken() {
+  try {
+    const raw = sessionStorage.getItem(GOOGLE_TOKEN_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data?.accessToken) return null;
+    if (data.expiresAt && Date.now() > data.expiresAt - 15000) return null;
+    return data;
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeGoogleToken(data) {
+  if (!data) {
+    sessionStorage.removeItem(GOOGLE_TOKEN_KEY);
+    return;
+  }
+  sessionStorage.setItem(GOOGLE_TOKEN_KEY, JSON.stringify(data));
+}
+
+function googleClientId() {
+  return String(document.getElementById('s-google-client-id')?.value || settings?.googleClientId || '').trim();
+}
+
+function updateGoogleStatus() {
+  const token = readGoogleToken();
+  const email = token?.email || settings?.googleEmail || '';
+  const status = document.getElementById('google-status');
+  const folder = document.getElementById('drive-folder-status');
+  if (status) {
+    status.textContent = email ? `Connected as ${email}` : 'Not connected';
+  }
+  if (folder) {
+    folder.textContent = settings?.driveFolderName
+      ? `Saving to Drive folder: ${settings.driveFolderName}`
+      : 'No Drive folder selected — invoices go to My Drive';
+  }
+}
+
+async function persistGoogleSettings(patch) {
+  settings = await api('/api/settings', {
+    method: 'PUT',
+    body: {
+      googleClientId: googleClientId(),
+      googleEmail: patch.googleEmail ?? settings?.googleEmail ?? '',
+      driveFolderId: patch.driveFolderId ?? settings?.driveFolderId ?? '',
+      driveFolderName: patch.driveFolderName ?? settings?.driveFolderName ?? '',
+    },
+  });
+  if (document.getElementById('s-google-client-id')) {
+    document.getElementById('s-google-client-id').value = settings.googleClientId ?? '';
+  }
+  updateGoogleStatus();
+}
+
+async function waitForGoogleIdentity() {
+  const started = Date.now();
+  while (!window.google?.accounts?.oauth2) {
+    if (Date.now() - started > 8000) {
+      throw new Error(
+        'Could not load Google sign-in. Open the app in Chrome or Edge using http:// (Live Server or the local URL), stay online, and try again.',
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 120));
+  }
+}
+
+function requestGoogleAccessToken() {
+  const clientId = googleClientId();
+  if (!clientId) {
+    throw new Error('Add a Google OAuth Client ID in Settings first.');
+  }
+  return new Promise((resolve, reject) => {
+    const client = window.google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: DRIVE_SCOPES,
+      callback: (response) => {
+        if (response.error) {
+          reject(new Error(response.error_description || response.error));
+          return;
+        }
+        resolve(response);
+      },
+      error_callback: (error) => {
+        reject(new Error(error?.message || 'Google sign-in was cancelled'));
+      },
+    });
+    client.requestAccessToken({ prompt: readGoogleToken() ? '' : 'consent' });
+  });
+}
+
+async function connectGoogleAccount() {
+  await waitForGoogleIdentity();
+  const response = await requestGoogleAccessToken();
+  const profile = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: { Authorization: `Bearer ${response.access_token}` },
+  }).then(async (res) => {
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error_description || 'Could not read the Gmail address');
+    return data;
+  });
+  writeGoogleToken({
+    accessToken: response.access_token,
+    expiresAt: Date.now() + Number(response.expires_in || 3600) * 1000,
+    email: profile.email || '',
+  });
+  await persistGoogleSettings({ googleEmail: profile.email || '' });
+  return readGoogleToken();
+}
+
+async function ensureGoogleToken() {
+  const existing = readGoogleToken();
+  if (existing) return existing;
+  return connectGoogleAccount();
+}
+
+async function disconnectGoogleAccount() {
+  const token = readGoogleToken();
+  try {
+    if (token?.accessToken && window.google?.accounts?.oauth2?.revoke) {
+      await new Promise((resolve) => {
+        window.google.accounts.oauth2.revoke(token.accessToken, () => resolve());
+      });
+    }
+  } catch (error) {}
+  writeGoogleToken(null);
+  await persistGoogleSettings({ googleEmail: '', driveFolderId: '', driveFolderName: '' });
+}
+
+async function driveFetch(url, options = {}) {
+  const token = await ensureGoogleToken();
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token.accessToken}`,
+      ...(options.headers ?? {}),
+    },
+  });
+  if (response.status === 401) {
+    writeGoogleToken(null);
+    const retryToken = await connectGoogleAccount();
+    return fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${retryToken.accessToken}`,
+        ...(options.headers ?? {}),
+      },
+    });
+  }
+  return response;
+}
+
+async function listDriveFolders() {
+  const files = [];
+  let pageToken = '';
+  do {
+    const params = new URLSearchParams({
+      q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+      fields: 'nextPageToken,files(id,name)',
+      pageSize: '100',
+      orderBy: 'name',
+      spaces: 'drive',
+    });
+    if (pageToken) params.set('pageToken', pageToken);
+    const response = await driveFetch(`https://www.googleapis.com/drive/v3/files?${params}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error?.message || 'Could not list Drive folders');
+    }
+    files.push(...(data.files || []));
+    pageToken = data.nextPageToken || '';
+  } while (pageToken && files.length < 400);
+  return files;
+}
+
+async function uploadPdfToDrive(blob, filename) {
+  const metadata = {
+    name: filename,
+    mimeType: 'application/pdf',
+  };
+  if (settings?.driveFolderId) {
+    metadata.parents = [settings.driveFolderId];
+  }
+  const boundary = `introis_${Date.now()}`;
+  const head = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: application/pdf\r\n\r\n`;
+  const tail = `\r\n--${boundary}--`;
+  const body = new Blob([head, blob, tail]);
+  const response = await driveFetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+      body,
+    },
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error?.message || 'Could not upload the invoice to Drive');
+  }
+  return data;
+}
+
+function renderDriveFolders(folders, filter = '') {
+  const list = document.getElementById('drive-folder-list');
+  const query = filter.trim().toLowerCase();
+  const visible = folders.filter((folder) => !query || folder.name.toLowerCase().includes(query));
+  const selected = settings?.driveFolderId || '';
+  const rows = [
+    `<button type="button" data-folder-id="" data-folder-name="My Drive"${selected ? '' : ' class="active"'}>My Drive (root)</button>`,
+    ...visible.map(
+      (folder) =>
+        `<button type="button" data-folder-id="${escapeHtml(folder.id)}" data-folder-name="${escapeHtml(folder.name)}"${
+          folder.id === selected ? ' class="active"' : ''
+        }>${escapeHtml(folder.name)}</button>`,
+    ),
+  ];
+  list.innerHTML = rows.join('') || '<p class="hint">No folders match that name.</p>';
+}
+
+async function openDriveFolderModal() {
+  await ensureGoogleToken();
+  const modal = document.getElementById('drive-folder-modal');
+  const list = document.getElementById('drive-folder-list');
+  list.innerHTML = '<p class="hint">Loading folders…</p>';
+  modal.hidden = false;
+  try {
+    const folders = await listDriveFolders();
+    cachedDriveFolders = folders;
+    document.getElementById('drive-folder-filter').value = '';
+    renderDriveFolders(folders);
+  } catch (error) {
+    closeDriveFolderModal();
+    throw error;
+  }
+}
+
+function closeDriveFolderModal() {
+  document.getElementById('drive-folder-modal').hidden = true;
+}
+
 function bankFields(prefix, bank) {
   return `
     <label>Bank name <input name="${prefix}-bankName" value="${bank.bankName ?? ''}"></label>
@@ -163,8 +411,10 @@ function fillSettingsForm() {
   document.getElementById('s-sign-name').value = settings.signatory.name;
   document.getElementById('s-sign-role').value = settings.signatory.designation;
   document.getElementById('s-terms').value = (settings.terms ?? []).join('\n');
+  document.getElementById('s-google-client-id').value = settings.googleClientId ?? '';
   document.getElementById('bank-current').innerHTML = bankFields('current', settings.banks.current);
   document.getElementById('bank-savings').innerHTML = bankFields('savings', settings.banks.savings);
+  updateGoogleStatus();
 }
 
 function populateClients() {
@@ -534,7 +784,7 @@ async function waitForFrame(frame) {
   });
 }
 
-async function downloadInvoicePdf(invoice, filename) {
+async function invoicePdfBlob(invoice) {
   const JsPDF = getJsPdf();
   if (typeof html2canvas !== 'function' || !JsPDF) {
     throw new Error('Could not prepare the PDF download. Reload the page and try again.');
@@ -578,16 +828,20 @@ async function downloadInvoicePdf(invoice, filename) {
     const page = await captureElement(doc.body);
     const pdf = new JsPDF({ unit: 'mm', format: 'a4', compress: true });
     addCanvasToPdf(pdf, page, false);
-    triggerDownload(pdf.output('blob'), filename);
+    return pdf.output('blob');
   } catch (error) {
     const detail = error && error.message ? error.message : 'Unknown error';
-    throw new Error(`Could not download the PDF (${detail})`);
+    throw new Error(`Could not build the PDF (${detail})`);
   } finally {
     frame.remove();
   }
 }
 
-async function consumePdfResponse(response, filename) {
+async function downloadInvoicePdf(invoice, filename) {
+  triggerDownload(await invoicePdfBlob(invoice), filename);
+}
+
+async function pdfBlobFromResponse(response, fallbackInvoice) {
   const type = response.headers.get('content-type') || '';
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
@@ -596,12 +850,15 @@ async function consumePdfResponse(response, filename) {
   if (type.includes('application/json')) {
     const data = await response.json();
     if (data.print && data.invoice) {
-      await downloadInvoicePdf(data.invoice, filename);
-      return;
+      return invoicePdfBlob(data.invoice);
     }
     throw new Error(data.error || 'Could not build PDF');
   }
-  triggerDownload(await response.blob(), filename);
+  return response.blob();
+}
+
+async function consumePdfResponse(response, filename) {
+  triggerDownload(await pdfBlobFromResponse(response), filename);
 }
 
 function downloadWord(invoice) {
@@ -613,23 +870,45 @@ function downloadWord(invoice) {
   );
 }
 
-async function downloadCurrentPdf() {
+async function currentInvoicePdf() {
   const preview = await api('/api/invoices/preview', { method: 'POST', body: formPayload() });
   if (window.STANDALONE) {
-    await downloadInvoicePdf(preview, `${preview.number}.pdf`);
-    return;
+    return { invoice: preview, blob: await invoicePdfBlob(preview) };
   }
   const response = await fetch('/api/invoices/preview.pdf', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(formPayload()),
   });
-  await consumePdfResponse(response, `${preview.number}.pdf`);
+  return { invoice: preview, blob: await pdfBlobFromResponse(response, preview) };
+}
+
+async function savedInvoicePdf(id, name) {
+  if (window.STANDALONE) {
+    const invoice = await api(`/api/invoices/${id}`);
+    return { invoice, blob: await invoicePdfBlob(invoice) };
+  }
+  const invoice = await api(`/api/invoices/${id}`);
+  const response = await fetch(`/api/invoices/${id}/pdf`);
+  return { invoice, blob: await pdfBlobFromResponse(response, invoice) };
+}
+
+async function saveInvoiceBlobToDrive(blob, filename) {
+  await ensureGoogleToken();
+  const uploaded = await uploadPdfToDrive(blob, filename);
+  const where = settings?.driveFolderName || 'My Drive';
+  toast(`Saved ${filename} to ${where}`);
+  return uploaded;
+}
+
+async function downloadCurrentPdf() {
+  const { invoice, blob } = await currentInvoicePdf();
+  triggerDownload(blob, `${invoice.number}.pdf`);
 }
 
 async function downloadSavedPdf(id, name) {
-  const response = await fetch(`/api/invoices/${id}/pdf`);
-  await consumePdfResponse(response, `${name || 'invoice'}.pdf`);
+  const { invoice, blob } = await savedInvoicePdf(id, name);
+  triggerDownload(blob, `${name || invoice.number || 'invoice'}.pdf`);
 }
 
 async function loadInvoices() {
@@ -645,6 +924,7 @@ async function loadInvoices() {
           <td>${formatInr(invoice.total)}</td>
           <td>
             <button type="button" class="ghost" data-pdf="${invoice.id}" data-name="${invoice.number}">Download PDF</button>
+            · <button type="button" class="ghost" data-drive="${invoice.id}" data-name="${invoice.number}">Drive</button>
             · <button type="button" class="ghost" data-word="${invoice.id}">Word</button>
             · <button type="button" class="ghost" data-reuse="${invoice.id}">Reuse</button>
           </td>
@@ -739,6 +1019,15 @@ document.getElementById('download-pdf').addEventListener('click', async () => {
   }
 });
 
+document.getElementById('save-drive').addEventListener('click', async () => {
+  try {
+    const { invoice, blob } = await currentInvoicePdf();
+    await saveInvoiceBlobToDrive(blob, `${invoice.number}.pdf`);
+  } catch (error) {
+    toast(error.message, 6000);
+  }
+});
+
 document.getElementById('download-word').addEventListener('click', async () => {
   try {
     const invoice = await api('/api/invoices/preview', { method: 'POST', body: formPayload() });
@@ -793,6 +1082,53 @@ document.getElementById('client-rows').addEventListener('click', async (event) =
   }
 });
 
+document.getElementById('connect-google').addEventListener('click', async () => {
+  try {
+    await persistGoogleSettings({});
+    await connectGoogleAccount();
+    toast(`Connected ${settings.googleEmail || 'Gmail'}`);
+  } catch (error) {
+    toast(error.message, 6000);
+  }
+});
+document.getElementById('disconnect-google').addEventListener('click', async () => {
+  try {
+    await disconnectGoogleAccount();
+    toast('Disconnected Google account');
+  } catch (error) {
+    toast(error.message);
+  }
+});
+document.getElementById('choose-drive-folder').addEventListener('click', async () => {
+  try {
+    await persistGoogleSettings({});
+    await openDriveFolderModal();
+  } catch (error) {
+    toast(error.message, 6000);
+  }
+});
+document.getElementById('close-drive-folder-modal').addEventListener('click', () => closeDriveFolderModal());
+document.getElementById('drive-folder-modal').addEventListener('click', (event) => {
+  if (event.target.id === 'drive-folder-modal') closeDriveFolderModal();
+});
+document.getElementById('drive-folder-filter').addEventListener('input', (event) => {
+  renderDriveFolders(cachedDriveFolders, event.target.value);
+});
+document.getElementById('drive-folder-list').addEventListener('click', async (event) => {
+  const button = event.target.closest('button');
+  if (!button || button.dataset.folderName == null) return;
+  try {
+    await persistGoogleSettings({
+      driveFolderId: button.dataset.folderId || '',
+      driveFolderName: button.dataset.folderName || 'My Drive',
+    });
+    closeDriveFolderModal();
+    toast(`Saving invoices to ${settings.driveFolderName}`);
+  } catch (error) {
+    toast(error.message);
+  }
+});
+
 document.getElementById('menu-toggle').addEventListener('click', () => {
   if (document.body.classList.contains('nav-open')) closeNav();
   else openNav();
@@ -802,17 +1138,30 @@ document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
   closeNav();
   if (!document.getElementById('client-modal').hidden) closeClientModal();
+  if (!document.getElementById('drive-folder-modal').hidden) closeDriveFolderModal();
 });
 
 document.getElementById('invoice-rows').addEventListener('click', async (event) => {
-  const pdfId = event.target.dataset.pdf;
-  const wordId = event.target.dataset.word;
-  const id = event.target.dataset.reuse;
+  const button = event.target.closest('button');
+  if (!button) return;
+  const pdfId = button.dataset.pdf;
+  const driveId = button.dataset.drive;
+  const wordId = button.dataset.word;
+  const id = button.dataset.reuse;
   if (pdfId) {
     try {
-      await downloadSavedPdf(pdfId, event.target.dataset.name);
+      await downloadSavedPdf(pdfId, button.dataset.name);
     } catch (error) {
       toast(error.message);
+    }
+    return;
+  }
+  if (driveId) {
+    try {
+      const { invoice, blob } = await savedInvoicePdf(driveId, button.dataset.name);
+      await saveInvoiceBlobToDrive(blob, `${button.dataset.name || invoice.number}.pdf`);
+    } catch (error) {
+      toast(error.message, 6000);
     }
     return;
   }
@@ -872,10 +1221,15 @@ document.getElementById('settings-form').addEventListener('submit', async (event
         .value.split('\n')
         .map((line) => line.trim())
         .filter(Boolean),
+      googleClientId: googleClientId(),
+      googleEmail: settings?.googleEmail ?? '',
+      driveFolderId: settings?.driveFolderId ?? '',
+      driveFolderName: settings?.driveFolderName ?? '',
     },
   });
   applySequenceForAccount();
   updateNumberFields();
+  updateGoogleStatus();
   toast('Settings saved');
 });
 
@@ -899,6 +1253,7 @@ async function init() {
     document.getElementById('client-select').value = clients[0].id;
     applyClient(clients[0]);
   }
+  updateGoogleStatus();
   refreshPreview();
 }
 
