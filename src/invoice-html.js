@@ -111,14 +111,13 @@ export function invoiceStyles() {
       letter-spacing: 0.6px;
       font-weight: 700;
     }
-    .section { margin-top: 20px; }
-    .section.footer-grid,
-    .section.terms { margin-top: 40px; }
+    .section { margin-top: 15pt; }
     .section p { margin: 0; }
     .two-col {
       display: grid;
       grid-template-columns: 1fr 1fr;
       column-gap: 48px;
+      row-gap: 15pt;
       align-items: start;
       margin: 0;
     }
@@ -306,8 +305,6 @@ export function renderInvoiceHtml(invoice, { logoDataUri, signatureDataUri }) {
       <p>Email: ${escapeHtml(invoice.client.email)}</p>
       <p>GSTIN of Recipient: ${escapeHtml(invoice.client.gstin)}</p>
     </div>
-  </div>
-  <div class="section two-col">
     <div>
       <p class="meta-row"><strong>Invoice Number:</strong> ${escapeHtml(number)}</p>
       <p class="meta-row"><strong>Invoice Date:</strong> ${escapeHtml(formatDateDisplay(invoice.invoiceDate))}</p>
