@@ -1228,7 +1228,12 @@ function invoiceDocumentHtml(invoice, options = {}) {
       html, body{margin:0;padding:0;height:auto}
       body{font-family:Aptos,"Aptos Display",Calibri,Arial,sans-serif;color:#111;font-size:11pt;line-height:1.15}
       p{margin:0;font-size:11pt;line-height:1.15}
-      .head{display:flex;justify-content:space-between;align-items:flex-start;margin:0}
+      .head{display:flex;justify-content:space-between;align-items:flex-start;margin:0;padding-bottom:15pt}
+      img.logo{height:52px;width:auto;max-width:260px;object-fit:contain;object-position:left top;display:block}
+      h1{color:#002060;margin:0;font-size:22pt;font-weight:700;line-height:1.05}
+      .kind{color:#666;font-size:10pt;font-weight:700;letter-spacing:0.6px;margin-top:1px}
+      .section{margin-top:15pt}
+      .head+.section{margin-top:0}
       img.logo{height:52px;width:auto;max-width:260px;object-fit:contain;object-position:left top;display:block}
       h1{color:#002060;margin:0;font-size:22pt;font-weight:700;line-height:1.05}
       .kind{color:#666;font-size:10pt;font-weight:700;letter-spacing:0.6px;margin-top:1px}

@@ -86,6 +86,7 @@ export function invoiceStyles() {
       justify-content: space-between;
       align-items: flex-start;
       margin: 0;
+      padding-bottom: 15pt;
     }
     .logo {
       display: block;
@@ -112,6 +113,7 @@ export function invoiceStyles() {
       font-weight: 700;
     }
     .section { margin-top: 15pt; }
+    .header + .section { margin-top: 0; }
     .section p { margin: 0; }
     .two-col {
       display: grid;
