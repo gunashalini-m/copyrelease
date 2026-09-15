@@ -7,204 +7,254 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <aside class="sidebar">
-    <div class="brand">
-      <img src="assets/logo.png" alt="Introis Technologies">
-      <div>
-        <strong>Invoice Generator</strong>
-        <span>Introis Technologies</span>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <img src="assets/logo.png" alt="Introis Technologies">
+        <div>
+          <strong>Introis</strong>
+          <span>Invoice Generator</span>
+        </div>
       </div>
+      <nav>
+        <button data-view="create" class="active">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>
+          New invoice
+        </button>
+        <button data-view="history">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+          Invoices
+        </button>
+        <button data-view="clients">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Clients
+        </button>
+        <button data-view="settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1.1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+          Settings
+        </button>
+      </nav>
+      <a class="download-app" href="/download">Download app</a>
+    </aside>
+
+    <div class="shell-main">
+      <header class="topbar">
+        <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+        <h1 class="page-title" id="page-title">New invoice</h1>
+        <a class="download-app topbar-download" href="/download">Download app</a>
+      </header>
+
+      <main>
+        <section id="view-create" class="view">
+          <div class="layout">
+            <form id="invoice-form" class="panel">
+              <div class="panel-head">
+                <h2>Create invoice</h2>
+                <p class="hint">Next number: <strong id="next-number-label"></strong></p>
+              </div>
+
+              <div class="grid-2">
+                <label>Invoice number
+                  <input id="invoice-number" readonly>
+                </label>
+                <label>Sequence (editable)
+                  <input id="sequence" type="number" min="1" required>
+                </label>
+                <label>Invoice date
+                  <input id="invoice-date" type="date" required>
+                </label>
+                <label>Payment kind
+                  <select id="payment-kind">
+                    <option>CASH / CREDIT</option>
+                    <option>CASH</option>
+                    <option>CREDIT</option>
+                  </select>
+                </label>
+                <label>Bank account
+                  <select id="account-type">
+                    <option value="current">Current — GST invoice</option>
+                    <option value="savings">Savings — Non-GST invoice</option>
+                  </select>
+                </label>
+                <label>Client
+                  <select id="client-select">
+                    <option value="">Select a client</option>
+                  </select>
+                </label>
+              </div>
+
+              <div id="bank-summary" class="note"></div>
+
+              <h2>Bill to</h2>
+              <div class="grid-2">
+                <label>Contact name
+                  <input id="client-contact" required>
+                </label>
+                <label>Company
+                  <input id="client-company" required>
+                </label>
+                <label class="full">Address
+                  <textarea id="client-address" rows="3"></textarea>
+                </label>
+                <label>Email
+                  <input id="client-email" type="email">
+                </label>
+                <label>GSTIN
+                  <input id="client-gstin">
+                </label>
+              </div>
+
+              <h2>Project</h2>
+              <label>Project name
+                <input id="project-name" required>
+              </label>
+              <label>Duration of project completion
+                <input id="duration" required>
+              </label>
+
+              <div class="panel-head compact">
+                <h2>Line items</h2>
+                <button type="button" id="add-item" class="secondary">Add item</button>
+              </div>
+              <div id="items"></div>
+
+              <div class="totals-card" id="totals"></div>
+
+              <div class="actions">
+                <button type="submit">Save invoice</button>
+                <button type="button" id="download-pdf" class="secondary">Download PDF</button>
+                <button type="button" id="download-word" class="secondary">Download Word</button>
+                <button type="button" id="load-sample" class="ghost">Load sample values</button>
+              </div>
+            </form>
+
+            <aside class="preview-wrap">
+              <h2>Live preview</h2>
+              <div class="preview-scaler">
+                <iframe id="live-preview" title="Invoice preview"></iframe>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="view-history" class="view hidden">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Saved invoices</h2>
+            </div>
+            <div class="table-scroll">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Number</th>
+                    <th>Date</th>
+                    <th>Client</th>
+                    <th>Account</th>
+                    <th>Total</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="invoice-rows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-clients" class="view hidden">
+          <div class="panel">
+            <div class="panel-head">
+              <h2>Clients</h2>
+              <button type="button" id="add-client" class="primary">Add client</button>
+            </div>
+            <div class="table-scroll">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Company</th>
+                    <th>Contact</th>
+                    <th>Email</th>
+                    <th>GSTIN</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="client-rows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-settings" class="view hidden">
+          <form id="settings-form" class="panel">
+            <h2>Organisation settings</h2>
+            <h3>Invoice numbering</h3>
+            <p class="hint">Current (GST) and Savings (Non-GST) invoices have separate prefixes and sequence counters. Choosing Savings on a new invoice switches to the Non-GST prefix and next number automatically. Saving an invoice also advances only that series.</p>
+            <h3>GST invoices (Current account)</h3>
+            <div class="grid-2">
+              <label>Prefix <input id="s-prefix" required></label>
+              <label>Next sequence <input id="s-next" type="number" min="1" required></label>
+            </div>
+            <h3>Non-GST invoices (Savings account)</h3>
+            <div class="grid-2">
+              <label>Prefix <input id="s-non-gst-prefix" required></label>
+              <label>Next sequence <input id="s-non-gst-next" type="number" min="1" required></label>
+            </div>
+            <div class="grid-2">
+              <label>Zero padding <input id="s-pad" type="number" min="1" max="8" required></label>
+            </div>
+
+            <h3>From / company</h3>
+            <div class="grid-2">
+              <label>Name <input id="s-name" required></label>
+              <label>GSTIN <input id="s-gstin" required></label>
+              <label class="full">Address <textarea id="s-address" rows="3"></textarea></label>
+              <label>Phone <input id="s-phone"></label>
+              <label>Email <input id="s-email"></label>
+              <label>Signatory name <input id="s-sign-name"></label>
+              <label>Designation <input id="s-sign-role"></label>
+            </div>
+
+            <h3>Current account</h3>
+            <div class="grid-2" id="bank-current"></div>
+            <h3>Savings account</h3>
+            <div class="grid-2" id="bank-savings"></div>
+
+            <h3>Terms and conditions</h3>
+            <label>One term per line
+              <textarea id="s-terms" rows="6"></textarea>
+            </label>
+            <div class="actions">
+              <button type="submit">Save settings</button>
+            </div>
+          </form>
+        </section>
+      </main>
     </div>
-    <nav>
-      <button data-view="create" class="active">New invoice</button>
-      <button data-view="history">Invoices</button>
-      <button data-view="clients">Clients</button>
-      <button data-view="settings">Settings</button>
-    </nav>
-    <a class="download-app" href="/download">Download app</a>
-  </aside>
+  </div>
 
-  <main>
-    <section id="view-create" class="view">
-      <div class="layout">
-        <form id="invoice-form" class="panel">
-          <div class="panel-head">
-            <h1>Create invoice</h1>
-            <p class="hint">Next number: <strong id="next-number-label"></strong></p>
-          </div>
+  <div class="nav-backdrop" id="nav-backdrop" hidden></div>
 
-          <div class="grid-2">
-            <label>Invoice number
-              <input id="invoice-number" readonly>
-            </label>
-            <label>Sequence (editable)
-              <input id="sequence" type="number" min="1" required>
-            </label>
-            <label>Invoice date
-              <input id="invoice-date" type="date" required>
-            </label>
-            <label>Payment kind
-              <select id="payment-kind">
-                <option>CASH / CREDIT</option>
-                <option>CASH</option>
-                <option>CREDIT</option>
-              </select>
-            </label>
-            <label>Bank account
-              <select id="account-type">
-                <option value="current">Current — GST invoice</option>
-                <option value="savings">Savings — Non-GST invoice</option>
-              </select>
-            </label>
-            <label>Client
-              <select id="client-select">
-                <option value="">Select a client</option>
-              </select>
-            </label>
-          </div>
-
-          <div id="bank-summary" class="note"></div>
-
-          <h2>Bill to</h2>
-          <div class="grid-2">
-            <label>Contact name
-              <input id="client-contact" required>
-            </label>
-            <label>Company
-              <input id="client-company" required>
-            </label>
-            <label class="full">Address
-              <textarea id="client-address" rows="3"></textarea>
-            </label>
-            <label>Email
-              <input id="client-email" type="email">
-            </label>
-            <label>GSTIN
-              <input id="client-gstin">
-            </label>
-          </div>
-
-          <h2>Project</h2>
-          <label>Project name
-            <input id="project-name" required>
-          </label>
-          <label>Duration of project completion
-            <input id="duration" required>
-          </label>
-
-          <div class="panel-head compact">
-            <h2>Line items</h2>
-            <button type="button" id="add-item" class="secondary">Add item</button>
-          </div>
-          <div id="items"></div>
-
-          <div class="totals-card" id="totals"></div>
-
-          <div class="actions">
-            <button type="submit">Save invoice</button>
-            <button type="button" id="download-pdf" class="secondary">Download PDF</button>
-            <button type="button" id="download-word" class="secondary">Download Word</button>
-            <button type="button" id="load-sample" class="ghost">Load sample values</button>
-          </div>
-        </form>
-
-        <aside class="preview-wrap">
-          <h2>Live preview</h2>
-          <div class="preview-scaler">
-            <iframe id="live-preview" title="Invoice preview"></iframe>
-          </div>
-        </aside>
-      </div>
-    </section>
-
-    <section id="view-history" class="view hidden">
-      <div class="panel">
-        <h1>Saved invoices</h1>
-        <div class="table-scroll">
-          <table class="data">
-            <thead>
-              <tr>
-                <th>Number</th>
-                <th>Date</th>
-                <th>Client</th>
-                <th>Account</th>
-                <th>Total</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="invoice-rows"></tbody>
-          </table>
+  <div class="modal" id="client-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="client-form-title">
+      <form id="client-form">
+        <div class="panel-head">
+          <h2 id="client-form-title">Add client</h2>
+          <button type="button" class="ghost" id="close-client-modal" aria-label="Close">×</button>
         </div>
-      </div>
-    </section>
-
-    <section id="view-clients" class="view hidden">
-      <div class="split">
-        <form id="client-form" class="panel">
-          <h1 id="client-form-title">Add client</h1>
-          <input type="hidden" id="client-id">
-          <label>Contact name <input id="c-contact" required></label>
-          <label>Company <input id="c-company" required></label>
-          <label>Address <textarea id="c-address" rows="3"></textarea></label>
-          <label>Email <input id="c-email" type="email"></label>
-          <label>GSTIN <input id="c-gstin"></label>
-          <div class="actions">
-            <button type="submit">Save client</button>
-            <button type="button" id="reset-client" class="ghost">Clear</button>
-          </div>
-        </form>
-        <div class="panel">
-          <h1>Client list</h1>
-          <div id="client-list" class="stack"></div>
-        </div>
-      </div>
-    </section>
-
-    <section id="view-settings" class="view hidden">
-      <form id="settings-form" class="panel">
-        <h1>Organisation settings</h1>
-        <h2>Invoice numbering</h2>
-        <p class="hint">Current (GST) and Savings (Non-GST) invoices have separate prefixes and sequence counters. Choosing Savings on a new invoice switches to the Non-GST prefix and next number automatically. Saving an invoice advances only that series.</p>
-        <h3>GST invoices (Current account)</h3>
-        <div class="grid-2">
-          <label>Prefix <input id="s-prefix" required></label>
-          <label>Next sequence <input id="s-next" type="number" min="1" required></label>
-        </div>
-        <h3>Non-GST invoices (Savings account)</h3>
-        <div class="grid-2">
-          <label>Prefix <input id="s-non-gst-prefix" required></label>
-          <label>Next sequence <input id="s-non-gst-next" type="number" min="1" required></label>
-        </div>
-        <div class="grid-2">
-          <label>Zero padding <input id="s-pad" type="number" min="1" max="8" required></label>
-        </div>
-
-        <h2>From / company</h2>
-        <div class="grid-2">
-          <label>Name <input id="s-name" required></label>
-          <label>GSTIN <input id="s-gstin" required></label>
-          <label class="full">Address <textarea id="s-address" rows="3"></textarea></label>
-          <label>Phone <input id="s-phone"></label>
-          <label>Email <input id="s-email"></label>
-          <label>Signatory name <input id="s-sign-name"></label>
-          <label>Designation <input id="s-sign-role"></label>
-        </div>
-
-        <h2>Current account</h2>
-        <div class="grid-2" id="bank-current"></div>
-        <h2>Savings account</h2>
-        <div class="grid-2" id="bank-savings"></div>
-
-        <h2>Terms and conditions</h2>
-        <label>One term per line
-          <textarea id="s-terms" rows="6"></textarea>
-        </label>
+        <input type="hidden" id="client-id">
+        <label>Contact name <input id="c-contact" required></label>
+        <label>Company <input id="c-company" required></label>
+        <label>Address <textarea id="c-address" rows="3"></textarea></label>
+        <label>Email <input id="c-email" type="email"></label>
+        <label>GSTIN <input id="c-gstin"></label>
         <div class="actions">
-          <button type="submit">Save settings</button>
+          <button type="submit">Save client</button>
+          <button type="button" id="reset-client" class="ghost">Cancel</button>
         </div>
       </form>
-    </section>
-  </main>
+    </div>
+  </div>
 
   <div id="toast" hidden></div>
   <script src="vendor/html2canvas.min.js"></script>

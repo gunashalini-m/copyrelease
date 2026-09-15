@@ -71,13 +71,59 @@ function invoiceNumber(sequence = Number(document.getElementById('sequence').val
   return `${numbering.prefix}${String(sequence).padStart(width, '0')}`;
 }
 
+function closeNav() {
+  document.body.classList.remove('nav-open');
+  const toggle = document.getElementById('menu-toggle');
+  const backdrop = document.getElementById('nav-backdrop');
+  if (toggle) toggle.setAttribute('aria-expanded', 'false');
+  if (backdrop) backdrop.hidden = true;
+}
+
+function openNav() {
+  document.body.classList.add('nav-open');
+  const toggle = document.getElementById('menu-toggle');
+  const backdrop = document.getElementById('nav-backdrop');
+  if (toggle) toggle.setAttribute('aria-expanded', 'true');
+  if (backdrop) backdrop.hidden = false;
+}
+
 function showView(name) {
+  const titles = {
+    create: 'New invoice',
+    history: 'Invoices',
+    clients: 'Clients',
+    settings: 'Settings',
+  };
   Object.entries(views).forEach(([key, node]) => {
     node.classList.toggle('hidden', key !== name);
   });
   document.querySelectorAll('nav button').forEach((button) => {
     button.classList.toggle('active', button.dataset.view === name);
   });
+  const title = document.getElementById('page-title');
+  if (title) title.textContent = titles[name] || 'Invoice Generator';
+  closeNav();
+}
+
+function openClientModal(client) {
+  const modal = document.getElementById('client-modal');
+  document.getElementById('client-id').value = client?.id || '';
+  document.getElementById('c-contact').value = client?.contactName || '';
+  document.getElementById('c-company').value = client?.companyName || '';
+  document.getElementById('c-address').value = client?.address || '';
+  document.getElementById('c-email').value = client?.email || '';
+  document.getElementById('c-gstin').value = client?.gstin || '';
+  document.getElementById('client-form-title').textContent = client ? 'Edit client' : 'Add client';
+  modal.hidden = false;
+  document.getElementById('c-contact').focus();
+}
+
+function closeClientModal() {
+  const modal = document.getElementById('client-modal');
+  modal.hidden = true;
+  document.getElementById('client-form').reset();
+  document.getElementById('client-id').value = '';
+  document.getElementById('client-form-title').textContent = 'Add client';
 }
 
 function bankFields(prefix, bank) {
@@ -125,19 +171,37 @@ function populateClients() {
   const select = document.getElementById('client-select');
   const current = select.value;
   select.innerHTML = `<option value="">Select a client</option>${clients
-    .map((client) => `<option value="${client.id}">${client.companyName} — ${client.contactName}</option>`)
+    .map((client) => `<option value="${client.id}">${escapeHtml(client.companyName)} — ${escapeHtml(client.contactName)}</option>`)
     .join('')}`;
   select.value = current;
-  document.getElementById('client-list').innerHTML = clients
-    .map(
-      (client) => `
-        <article class="card">
-          <h3>${client.companyName}</h3>
-          <p>${client.contactName}\n${client.email || ''}\n${client.gstin || ''}</p>
-          <button type="button" data-edit="${client.id}">Edit</button>
-          <button type="button" class="ghost" data-delete="${client.id}">Delete</button>
-        </article>`,
-    )
+  const rows = document.getElementById('client-rows');
+  if (!clients.length) {
+    rows.innerHTML = '<tr><td class="empty" colspan="5">No clients yet. Click Add client to create one.</td></tr>';
+    return;
+  }
+  rows.innerHTML = clients
+    .map((client) => {
+      const initial = String(client.companyName || client.contactName || '?')
+        .trim()
+        .charAt(0)
+        .toUpperCase();
+      return `
+        <tr>
+          <td>
+            <div class="company-cell">
+              <span class="avatar">${escapeHtml(initial)}</span>
+              ${escapeHtml(client.companyName)}
+            </div>
+          </td>
+          <td>${escapeHtml(client.contactName)}</td>
+          <td>${escapeHtml(client.email || '')}</td>
+          <td>${escapeHtml(client.gstin || '')}</td>
+          <td>
+            <button type="button" class="ghost" data-edit="${escapeHtml(client.id)}">Edit</button>
+            <button type="button" class="ghost" data-delete="${escapeHtml(client.id)}">Delete</button>
+          </td>
+        </tr>`;
+    })
     .join('');
 }
 
@@ -701,36 +765,43 @@ document.getElementById('client-form').addEventListener('submit', async (event) 
   }
   clients = await api('/api/clients');
   populateClients();
-  document.getElementById('client-form').reset();
-  document.getElementById('client-id').value = '';
-  document.getElementById('client-form-title').textContent = 'Add client';
+  closeClientModal();
   toast('Client saved');
 });
 
-document.getElementById('reset-client').addEventListener('click', () => {
-  document.getElementById('client-form').reset();
-  document.getElementById('client-id').value = '';
-  document.getElementById('client-form-title').textContent = 'Add client';
+document.getElementById('add-client').addEventListener('click', () => openClientModal());
+document.getElementById('reset-client').addEventListener('click', () => closeClientModal());
+document.getElementById('close-client-modal').addEventListener('click', () => closeClientModal());
+document.getElementById('client-modal').addEventListener('click', (event) => {
+  if (event.target.id === 'client-modal') closeClientModal();
 });
 
-document.getElementById('client-list').addEventListener('click', async (event) => {
-  const editId = event.target.dataset.edit;
-  const deleteId = event.target.dataset.delete;
+document.getElementById('client-rows').addEventListener('click', async (event) => {
+  const button = event.target.closest('button');
+  if (!button) return;
+  const editId = button.dataset.edit;
+  const deleteId = button.dataset.delete;
   if (editId) {
     const client = clients.find((item) => item.id === editId);
-    document.getElementById('client-id').value = client.id;
-    document.getElementById('c-contact').value = client.contactName;
-    document.getElementById('c-company').value = client.companyName;
-    document.getElementById('c-address').value = client.address;
-    document.getElementById('c-email').value = client.email;
-    document.getElementById('c-gstin').value = client.gstin;
-    document.getElementById('client-form-title').textContent = 'Edit client';
+    if (client) openClientModal(client);
   }
   if (deleteId) {
     await api(`/api/clients/${deleteId}`, { method: 'DELETE' });
     clients = await api('/api/clients');
     populateClients();
+    toast('Client deleted');
   }
+});
+
+document.getElementById('menu-toggle').addEventListener('click', () => {
+  if (document.body.classList.contains('nav-open')) closeNav();
+  else openNav();
+});
+document.getElementById('nav-backdrop').addEventListener('click', () => closeNav());
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  closeNav();
+  if (!document.getElementById('client-modal').hidden) closeClientModal();
 });
 
 document.getElementById('invoice-rows').addEventListener('click', async (event) => {
@@ -810,11 +881,10 @@ document.getElementById('settings-form').addEventListener('submit', async (event
 
 async function init() {
   if (window.STANDALONE) {
-    const download = document.querySelector('.download-app');
-    if (download) {
+    document.querySelectorAll('.download-app').forEach((download) => {
       download.textContent = 'Offline file';
       download.removeAttribute('href');
-    }
+    });
   }
   settings = await api('/api/settings');
   clients = await api('/api/clients');
