@@ -180,7 +180,7 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.ok(page.includes('fitLivePreview'));
   assert.ok(page.includes('table-scroll'));
   assert.ok(page.includes('@media (max-width: 699px)'));
-  assert.ok(page.includes('@container (max-width: 560px)'));
+  assert.ok(page.includes('@container (max-width: 420px)'));
   assert.ok(!page.includes('Custom fields'));
   assert.ok(!page.includes('page-break terms'));
 });

@@ -76,10 +76,12 @@ nav button, .actions button, .secondary, .ghost, .download-app {
 .actions button, button[type="submit"] { background: var(--heading-blue); color: #fff; width: auto; display: inline-block; text-align: center; }
 .secondary { background: #d5e8f8; color: var(--heading-blue); width: auto; display: inline-block; text-align: center; }
 .ghost { background: transparent; color: var(--muted); width: auto; display: inline-block; text-align: center; }
+.actions .ghost { background: transparent; color: var(--muted); }
 
 main { flex: 1; min-width: 0; padding: 22px; overflow: auto; }
 .hidden { display: none !important; }
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.layout > * { min-width: 0; }
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -129,7 +131,7 @@ input, select, textarea {
   resize: vertical;
 }
 .item-row button { height: 38px; margin-top: 22px; }
-@container (max-width: 560px) {
+@container (max-width: 420px) {
   .item-row { grid-template-columns: 1fr 1fr auto; }
   .item-row > label:first-child { grid-column: 1 / -1; }
   .item-row button { height: 44px; min-width: 44px; margin-top: 28px; }
@@ -145,15 +147,21 @@ input, select, textarea {
   font-size: 11pt;
 }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.preview-wrap { min-width: 0; }
 .preview-wrap h2 { margin-top: 0; }
 .preview-scaler {
+  position: relative;
   width: 100%;
+  min-width: 0;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: #fff;
 }
 .preview-scaler iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: block;
   width: 794px;
   border: 0;
@@ -186,10 +194,17 @@ input, select, textarea {
 
 @media (max-width: 1199px) {
   body { flex-direction: column; }
-  .sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .sidebar {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 10px 12px;
+  }
   .brand { flex-direction: row; align-items: center; margin-bottom: 0; }
-  .sidebar nav { flex-direction: row; flex: 1; flex-wrap: wrap; }
-  .download-app { margin-top: 0; width: auto; }
+  .sidebar nav { display: flex; flex-direction: row; flex-wrap: wrap; grid-column: 1 / -1; gap: 6px; }
+  .sidebar nav button { width: auto; flex: 1 1 140px; text-align: center; }
+  .download-app { margin-top: 0; width: auto; grid-column: 2; grid-row: 1; }
 }
 
 @media (max-width: 899px) {
@@ -198,7 +213,7 @@ input, select, textarea {
 
 @media (max-width: 699px) {
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
-  .sidebar { padding: 14px 12px; gap: 8px; }
+  .sidebar { display: flex; flex-direction: column; padding: 14px 12px; gap: 8px; }
   .brand { flex-direction: row; align-items: center; width: 100%; margin-bottom: 4px; gap: 10px; }
   .brand img { height: 40px; }
   .sidebar nav {
@@ -207,8 +222,8 @@ input, select, textarea {
     width: 100%;
     flex: none;
   }
-  .sidebar nav button { min-height: 44px; text-align: center; }
-  .download-app { width: 100%; min-height: 44px; text-align: center; }
+  .sidebar nav button { width: 100%; min-height: 44px; text-align: center; flex: none; }
+  .download-app { width: 100%; min-height: 44px; text-align: center; grid-column: auto; grid-row: auto; }
   main { padding: 12px; }
   .panel { padding: 14px; }
   .panel-head, .compact { flex-direction: column; align-items: stretch; }
@@ -1255,6 +1270,9 @@ function fitLivePreview() {
     const height = Math.max(doc?.documentElement?.scrollHeight || 0, doc?.body?.scrollHeight || 0, 1);
     iframe.style.width = `${pageWidth}px`;
     iframe.style.height = `${height}px`;
+    iframe.style.position = 'absolute';
+    iframe.style.top = '0';
+    iframe.style.left = '0';
     const scale = Math.min(1, wrap.clientWidth / pageWidth);
     iframe.style.transform = `scale(${scale})`;
     wrap.style.height = `${Math.ceil(height * scale)}px`;

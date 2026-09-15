@@ -229,6 +229,9 @@ function fitLivePreview() {
     const height = Math.max(doc?.documentElement?.scrollHeight || 0, doc?.body?.scrollHeight || 0, 1);
     iframe.style.width = `${pageWidth}px`;
     iframe.style.height = `${height}px`;
+    iframe.style.position = 'absolute';
+    iframe.style.top = '0';
+    iframe.style.left = '0';
     const scale = Math.min(1, wrap.clientWidth / pageWidth);
     iframe.style.transform = `scale(${scale})`;
     wrap.style.height = `${Math.ceil(height * scale)}px`;
