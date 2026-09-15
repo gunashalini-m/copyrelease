@@ -307,8 +307,10 @@ function invoiceDocumentHtml(invoice, options = {}) {
       .sign{text-align:right}
       .sign img{height:52px;width:auto;max-width:230px;object-fit:contain;display:block;margin:0 0 2px auto}
       .line{border-top:2px solid #002060;display:inline-block;min-width:210px;padding-top:2px;color:#002060;font-weight:700;font-size:11pt}
+      .sign p{display:block;text-align:left;width:max-content;max-width:100%;margin:2px 0 0 auto;font-size:11pt;font-weight:400}
       .footer{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;margin:0;align-items:start;break-after:avoid;page-break-after:avoid}
-      .terms{text-align:left;margin:0;break-before:avoid;page-break-before:avoid}
+      .terms{text-align:left;break-before:avoid;page-break-before:avoid}
+      .section.terms{margin-top:15pt}
       .terms h2{font-size:11pt;font-weight:700;margin:0 0 1px;color:#111;text-align:left}
       .terms p{margin:0;font-size:11pt;font-weight:400;text-align:left;line-height:1.2;max-width:none}
       .heading{font-weight:700;font-size:11pt;margin:0 0 1px}

@@ -235,13 +235,21 @@ export function invoiceStyles() {
       letter-spacing: 0.3px;
       font-size: 11pt;
     }
-    .sign p { margin: 2px 0 0; font-size: 11pt; font-weight: 400; }
+    .sign p {
+      display: block;
+      text-align: left;
+      width: max-content;
+      max-width: 100%;
+      margin: 2px 0 0 auto;
+      font-size: 11pt;
+      font-weight: 400;
+    }
     .terms {
       text-align: left;
-      margin-top: 0;
       break-before: avoid;
       page-break-before: avoid;
     }
+    .section.terms { margin-top: 15pt; }
     .terms h2 {
       font-size: 11pt;
       font-weight: 700;
