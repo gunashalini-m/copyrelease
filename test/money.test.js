@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { computeTotals, formatInvoiceNumber, formatInr, taxRatesForAccount } from '../src/money.js';
+import { computeTotals, formatInvoiceNumber, formatInr, numberingForAccount, taxRatesForAccount } from '../src/money.js';
 
 test('indian rupee grouping and gst totals match the sample invoice', () => {
   const totals = computeTotals([
@@ -34,4 +34,22 @@ test('invoice numbers pad the sequence', () => {
   assert.equal(formatInvoiceNumber('INTSINV', 98, 3), 'INTSINV098');
   assert.equal(formatInvoiceNumber('INTSINV', 99, 3), 'INTSINV099');
   assert.equal(formatInvoiceNumber('INTSINV', 100, 3), 'INTSINV100');
+  assert.equal(formatInvoiceNumber('INTS-', 1, 3), 'INTS-001');
+});
+
+test('savings invoices use the non-gst prefix and sequence', () => {
+  const settings = {
+    invoicePrefix: 'INTSINV',
+    nextSequence: 105,
+    nonGstInvoicePrefix: 'INTS-',
+    nextNonGstSequence: 7,
+    sequencePadding: 3,
+  };
+  const gst = numberingForAccount(settings, 'current');
+  assert.equal(gst.prefix, 'INTSINV');
+  assert.equal(gst.nextSequence, 105);
+  const nonGst = numberingForAccount(settings, 'savings');
+  assert.equal(nonGst.prefix, 'INTS-');
+  assert.equal(nonGst.nextSequence, 7);
+  assert.equal(formatInvoiceNumber(nonGst.prefix, nonGst.nextSequence, nonGst.sequencePadding), 'INTS-007');
 });

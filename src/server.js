@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { computeTotals, formatInvoiceNumber, taxRatesForAccount } from './money.js';
+import { computeTotals, formatInvoiceNumber, numberingForAccount, taxRatesForAccount } from './money.js';
 import { renderInvoicePdf } from './pdf.js';
 import { buildStandaloneHtml } from './standalone.js';
 import { createStore } from './store.js';
@@ -40,19 +40,20 @@ function buildInvoiceRecord(store, payload, { existing } = {}) {
   const clientGstinRaw = String(payload.client?.gstin ?? '').trim();
   const clientGstin =
     accountType === 'savings' && !clientGstinRaw ? 'NIL' : clientGstinRaw;
+  const numbering = numberingForAccount(settings, accountType);
   const sequence = existing
     ? existing.sequence
-    : Number(payload.sequence ?? settings.nextSequence);
+    : Number(payload.sequence ?? numbering.nextSequence);
   if (!Number.isInteger(sequence) || sequence < 1) {
     throw Object.assign(new Error('sequence must be a positive integer'), { status: 400 });
   }
 
   return {
     id: existing?.id ?? randomUUID(),
-    prefix: settings.invoicePrefix,
+    prefix: numbering.prefix,
     sequence,
-    sequencePadding: settings.sequencePadding,
-    number: formatInvoiceNumber(settings.invoicePrefix, sequence, settings.sequencePadding),
+    sequencePadding: numbering.sequencePadding,
+    number: formatInvoiceNumber(numbering.prefix, sequence, numbering.sequencePadding),
     invoiceDate: payload.invoiceDate || new Date().toISOString().slice(0, 10),
     paymentKind: payload.paymentKind || 'CASH / CREDIT',
     projectName: String(payload.projectName ?? '').trim(),
@@ -163,7 +164,11 @@ export function createApp({ storePath } = {}) {
       const invoice = buildInvoiceRecord(store, req.body ?? {});
       const settings = store.getSettings();
       store.createInvoice(invoice);
-      if (invoice.sequence >= settings.nextSequence) {
+      if (invoice.accountType === 'savings') {
+        if (invoice.sequence >= Number(settings.nextNonGstSequence ?? 1)) {
+          store.setNextNonGstSequence(invoice.sequence + 1);
+        }
+      } else if (invoice.sequence >= settings.nextSequence) {
         store.setNextSequence(invoice.sequence + 1);
       }
       res.status(201).json(invoice);

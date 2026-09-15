@@ -160,10 +160,18 @@
       <form id="settings-form" class="panel">
         <h1>Organisation settings</h1>
         <h2>Invoice numbering</h2>
-        <p class="hint">New invoices use prefix + the next sequence. Change the sequence here to jump ahead or correct the counter. Saving an invoice also advances it automatically.</p>
-        <div class="grid-3">
+        <p class="hint">Current (GST) and Savings (Non-GST) invoices have separate prefixes and sequence counters. Choosing Savings on a new invoice switches to the Non-GST prefix and next number automatically. Saving an invoice advances only that series.</p>
+        <h3>GST invoices (Current account)</h3>
+        <div class="grid-2">
           <label>Prefix <input id="s-prefix" required></label>
           <label>Next sequence <input id="s-next" type="number" min="1" required></label>
+        </div>
+        <h3>Non-GST invoices (Savings account)</h3>
+        <div class="grid-2">
+          <label>Prefix <input id="s-non-gst-prefix" required></label>
+          <label>Next sequence <input id="s-non-gst-next" type="number" min="1" required></label>
+        </div>
+        <div class="grid-2">
           <label>Zero padding <input id="s-pad" type="number" min="1" max="8" required></label>
         </div>
 

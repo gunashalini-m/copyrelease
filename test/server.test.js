@@ -28,6 +28,8 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   const settings = await fetch(`${url}/api/settings`).then((res) => res.json());
   assert.equal(settings.invoicePrefix, 'INTSINV');
   assert.equal(settings.nextSequence, 99);
+  assert.equal(settings.nonGstInvoicePrefix, 'INTS-');
+  assert.equal(settings.nextNonGstSequence, 1);
 
   await fetch(`${url}/api/settings`, {
     method: 'PUT',
@@ -74,14 +76,14 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       accountType: 'savings',
-      sequence: 200,
       projectName: 'Ads',
       duration: 'June 2026',
       client: createdClient,
       lineItems: [{ description: 'Ads', quantity: 2, unitPrice: 500 }],
     }),
   }).then((res) => res.json());
-  assert.equal(second.number, 'INTSINV200');
+  assert.equal(second.number, 'INTS-001');
+  assert.equal(second.prefix, 'INTS-');
   assert.equal(second.bank.accountType, 'Savings');
   assert.equal(second.lineItems[0].lineTotal, 1000);
   assert.equal(second.sgst, 0);
@@ -90,8 +92,26 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.equal(second.taxMode, 'non-gst');
   assert.equal(second.client.gstin, 'NIL');
 
-  const jumped = await fetch(`${url}/api/settings`).then((res) => res.json());
-  assert.equal(jumped.nextSequence, 201);
+  const afterSavings = await fetch(`${url}/api/settings`).then((res) => res.json());
+  assert.equal(afterSavings.nextSequence, 106);
+  assert.equal(afterSavings.nextNonGstSequence, 2);
+
+  const jumped = await fetch(`${url}/api/invoices`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      accountType: 'savings',
+      sequence: 200,
+      projectName: 'Ads',
+      duration: 'June 2026',
+      client: createdClient,
+      lineItems: [{ description: 'Ads', quantity: 1, unitPrice: 500 }],
+    }),
+  }).then((res) => res.json());
+  assert.equal(jumped.number, 'INTS-200');
+  const afterJump = await fetch(`${url}/api/settings`).then((res) => res.json());
+  assert.equal(afterJump.nextSequence, 106);
+  assert.equal(afterJump.nextNonGstSequence, 201);
 
   const pdfRes = await fetch(`${url}/api/invoices/${invoice.id}/pdf`);
   assert.equal(pdfRes.status, 200);
@@ -144,7 +164,10 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.ok(page.includes('.section.terms{margin-top:15pt}'));
   assert.ok(html.includes('.section.terms{margin-top:15pt}'));
   assert.ok(page.includes('.sign p{display:block;text-align:left'));
-  assert.ok(page.includes('PROJECT TITLE'));
+  assert.ok(page.includes('s-non-gst-prefix'));
+  assert.ok(page.includes('INTS-'));
+  assert.ok(page.includes('padding:8px 12px'));
+  assert.ok(html.includes('padding:8px 12px'));
   assert.ok(page.includes('border-spacing:2px'));
   assert.ok(page.includes('col-desc'));
   assert.ok(page.includes('#eef7fc'));

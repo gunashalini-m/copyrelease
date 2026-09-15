@@ -65,6 +65,9 @@ export function createStore(filePath) {
       if (patch.nextSequence !== undefined) {
         data.settings.nextSequence = Number(patch.nextSequence);
       }
+      if (patch.nextNonGstSequence !== undefined) {
+        data.settings.nextNonGstSequence = Number(patch.nextNonGstSequence);
+      }
       if (patch.sequencePadding !== undefined) {
         data.settings.sequencePadding = Number(patch.sequencePadding);
       }
@@ -127,6 +130,10 @@ export function createStore(filePath) {
     },
     setNextSequence(value) {
       data.settings.nextSequence = Number(value);
+      persist();
+    },
+    setNextNonGstSequence(value) {
+      data.settings.nextNonGstSequence = Number(value);
       persist();
     },
   };

@@ -162,13 +162,13 @@ export function invoiceStyles() {
       background: #c7e6fa;
       color: #111111;
       font-weight: 700;
-      padding: 3px 6px;
+      padding: 8px 12px;
       text-align: center;
       border: none;
       font-size: 11pt;
     }
     table.items td {
-      padding: 2px 6px;
+      padding: 8px 12px;
       border: none;
       vertical-align: middle;
       color: #111111;

@@ -47,6 +47,23 @@ export function formatInvoiceNumber(prefix, sequence, padding = 3) {
   return `${prefix}${String(numeric).padStart(width, '0')}`;
 }
 
+export function numberingForAccount(settings, accountType) {
+  const type = String(accountType || 'current').toLowerCase();
+  const sequencePadding = Number(settings?.sequencePadding ?? 3);
+  if (type === 'savings') {
+    return {
+      prefix: settings?.nonGstInvoicePrefix || 'INTS-',
+      nextSequence: Number(settings?.nextNonGstSequence ?? 1),
+      sequencePadding,
+    };
+  }
+  return {
+    prefix: settings?.invoicePrefix || 'INTSINV',
+    nextSequence: Number(settings?.nextSequence ?? 1),
+    sequencePadding,
+  };
+}
+
 export function formatDateDisplay(isoDate) {
   if (!isoDate) {
     return '';

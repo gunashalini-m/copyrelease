@@ -1,6 +1,8 @@
 export const defaultSettings = {
   invoicePrefix: 'INTSINV',
   nextSequence: 99,
+  nonGstInvoicePrefix: 'INTS-',
+  nextNonGstSequence: 1,
   sequencePadding: 3,
   company: {
     name: 'Introis Technologies',

@@ -49,10 +49,26 @@ function formatDateDisplay(isoDate) {
   return `${day}/${month}/${year}`;
 }
 
-function invoiceNumber(sequence = Number(document.getElementById('sequence').value)) {
+function numberingForAccount(accountType = document.getElementById('account-type').value) {
   const pad = settings?.sequencePadding ?? 3;
-  const width = Math.max(pad, String(sequence).length);
-  return `${settings?.invoicePrefix ?? 'INTSINV'}${String(sequence).padStart(width, '0')}`;
+  if (String(accountType || 'current').toLowerCase() === 'savings') {
+    return {
+      prefix: settings?.nonGstInvoicePrefix ?? 'INTS-',
+      nextSequence: Number(settings?.nextNonGstSequence ?? 1),
+      sequencePadding: pad,
+    };
+  }
+  return {
+    prefix: settings?.invoicePrefix ?? 'INTSINV',
+    nextSequence: Number(settings?.nextSequence ?? 1),
+    sequencePadding: pad,
+  };
+}
+
+function invoiceNumber(sequence = Number(document.getElementById('sequence').value), accountType) {
+  const numbering = numberingForAccount(accountType);
+  const width = Math.max(numbering.sequencePadding, String(sequence).length);
+  return `${numbering.prefix}${String(sequence).padStart(width, '0')}`;
 }
 
 function showView(name) {
@@ -90,6 +106,8 @@ function readBank(prefix) {
 function fillSettingsForm() {
   document.getElementById('s-prefix').value = settings.invoicePrefix;
   document.getElementById('s-next').value = settings.nextSequence;
+  document.getElementById('s-non-gst-prefix').value = settings.nonGstInvoicePrefix ?? 'INTS-';
+  document.getElementById('s-non-gst-next').value = settings.nextNonGstSequence ?? 1;
   document.getElementById('s-pad').value = settings.sequencePadding;
   document.getElementById('s-name').value = settings.company.name;
   document.getElementById('s-gstin').value = settings.company.gstin;
@@ -189,9 +207,14 @@ function updateBankSummary() {
     : gstNote;
 }
 
+function applySequenceForAccount() {
+  document.getElementById('sequence').value = numberingForAccount().nextSequence;
+}
+
 function updateNumberFields() {
+  const numbering = numberingForAccount();
   document.getElementById('invoice-number').value = invoiceNumber();
-  document.getElementById('next-number-label').textContent = invoiceNumber(settings.nextSequence);
+  document.getElementById('next-number-label').textContent = invoiceNumber(numbering.nextSequence);
 }
 
 async function refreshPreview() {
@@ -296,8 +319,8 @@ function invoiceDocumentHtml(invoice, options = {}) {
       table.items col.col-no{width:8%}
       table.items col.col-desc{width:54%}
       table.items col.col-amt{width:19%}
-      table.items th{background:#c7e6fa;text-align:center;color:#111;font-weight:700;border:none;padding:3px 6px}
-      table.items td{background:#eef7fc;font-weight:400;border:none;padding:2px 6px;vertical-align:middle}
+      table.items th{background:#c7e6fa;text-align:center;color:#111;font-weight:700;border:none;padding:8px 12px}
+      table.items td{background:#eef7fc;font-weight:400;border:none;padding:8px 12px;vertical-align:middle}
       table.items td.desc{text-align:left}
       table.items td.num, table.items th.num{text-align:right;white-space:nowrap}
       table.items td.center, table.items th.center{text-align:center}
@@ -595,6 +618,7 @@ document.getElementById('account-type').addEventListener('change', () => {
     const gstin = document.getElementById('client-gstin');
     if (!gstin.value.trim()) gstin.value = 'NIL';
   }
+  applySequenceForAccount();
   refreshPreview();
 });
 document.getElementById('invoice-form').addEventListener('input', () => {
@@ -614,8 +638,8 @@ document.getElementById('invoice-form').addEventListener('submit', async (event)
     const invoice = await api('/api/invoices', { method: 'POST', body: formPayload() });
     toast(`Saved ${invoice.number}`);
     settings = await api('/api/settings');
-    document.getElementById('sequence').value = settings.nextSequence;
-    document.getElementById('s-next').value = settings.nextSequence;
+    applySequenceForAccount();
+    fillSettingsForm();
     updateNumberFields();
     await loadInvoices();
   } catch (error) {
@@ -719,6 +743,7 @@ document.getElementById('invoice-rows').addEventListener('click', async (event) 
   applyClient(invoice.client);
   document.getElementById('payment-kind').value = invoice.paymentKind;
   document.getElementById('account-type').value = invoice.accountType;
+  applySequenceForAccount();
   document.getElementById('project-name').value = invoice.projectName;
   document.getElementById('duration').value = invoice.duration;
   document.getElementById('items').innerHTML = '';
@@ -734,6 +759,8 @@ document.getElementById('settings-form').addEventListener('submit', async (event
     body: {
       invoicePrefix: document.getElementById('s-prefix').value,
       nextSequence: Number(document.getElementById('s-next').value),
+      nonGstInvoicePrefix: document.getElementById('s-non-gst-prefix').value,
+      nextNonGstSequence: Number(document.getElementById('s-non-gst-next').value),
       sequencePadding: Number(document.getElementById('s-pad').value),
       company: {
         name: document.getElementById('s-name').value,
@@ -757,7 +784,7 @@ document.getElementById('settings-form').addEventListener('submit', async (event
         .filter(Boolean),
     },
   });
-  document.getElementById('sequence').value = settings.nextSequence;
+  applySequenceForAccount();
   updateNumberFields();
   toast('Settings saved');
 });
@@ -775,7 +802,7 @@ async function init() {
   fillSettingsForm();
   populateClients();
   document.getElementById('invoice-date').value = new Date().toISOString().slice(0, 10);
-  document.getElementById('sequence').value = settings.nextSequence;
+  applySequenceForAccount();
   addItem();
   updateNumberFields();
   updateBankSummary();

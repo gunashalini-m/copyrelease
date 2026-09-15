@@ -48,11 +48,29 @@ window.__SEED = ${JSON.stringify(seed)};
     const width = Math.max(padding || 3, String(numeric).length);
     return prefix + String(numeric).padStart(width, '0');
   }
+  function numberingForAccount(settings, accountType) {
+    if (String(accountType || 'current').toLowerCase() === 'savings') {
+      return {
+        prefix: settings.nonGstInvoicePrefix || 'INTS-',
+        nextSequence: Number(settings.nextNonGstSequence || 1),
+        sequencePadding: Number(settings.sequencePadding || 3),
+      };
+    }
+    return {
+      prefix: settings.invoicePrefix || 'INTSINV',
+      nextSequence: Number(settings.nextSequence || 1),
+      sequencePadding: Number(settings.sequencePadding || 3),
+    };
+  }
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
   function load() {
     try {
       const raw = localStorage.getItem(KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const data = JSON.parse(raw);
+        data.settings = Object.assign({}, clone(window.__SEED.settings), data.settings || {});
+        return data;
+      }
     } catch (error) {}
     const data = { settings: clone(window.__SEED.settings), clients: clone(window.__SEED.clients), invoices: [] };
     save(data);
@@ -71,16 +89,17 @@ window.__SEED = ${JSON.stringify(seed)};
     var accountType = String(payload.accountType || 'current').toLowerCase();
     var rates = taxRatesForAccount(accountType);
     var totals = computeTotals(payload.lineItems || [], rates.cgstRate, rates.sgstRate);
-    var sequence = Number(payload.sequence != null ? payload.sequence : settings.nextSequence);
+    var numbering = numberingForAccount(settings, accountType);
+    var sequence = Number(payload.sequence != null ? payload.sequence : numbering.nextSequence);
     var client = Object.assign({}, payload.client);
     var gstin = String(client.gstin || '').trim();
     if (accountType === 'savings' && !gstin) client.gstin = 'NIL';
     return {
       id: payload.id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
-      prefix: settings.invoicePrefix,
+      prefix: numbering.prefix,
       sequence: sequence,
-      sequencePadding: settings.sequencePadding,
-      number: formatInvoiceNumber(settings.invoicePrefix, sequence, settings.sequencePadding),
+      sequencePadding: numbering.sequencePadding,
+      number: formatInvoiceNumber(numbering.prefix, sequence, numbering.sequencePadding),
       invoiceDate: payload.invoiceDate || new Date().toISOString().slice(0, 10),
       paymentKind: payload.paymentKind || 'CASH / CREDIT',
       projectName: String(payload.projectName || '').trim(),
@@ -127,6 +146,7 @@ window.__SEED = ${JSON.stringify(seed)};
         terms: body.terms || store.settings.terms,
       });
       if (body.nextSequence != null) store.settings.nextSequence = Number(body.nextSequence);
+      if (body.nextNonGstSequence != null) store.settings.nextNonGstSequence = Number(body.nextNonGstSequence);
       if (body.sequencePadding != null) store.settings.sequencePadding = Number(body.sequencePadding);
       save(store);
       return json(store.settings);
@@ -167,7 +187,13 @@ window.__SEED = ${JSON.stringify(seed)};
       if (!body.lineItems || !body.lineItems.length) return json({ error: 'at least one line item is required' }, 400);
       var invoice = buildInvoice(store, body);
       store.invoices.push(invoice);
-      if (invoice.sequence >= store.settings.nextSequence) store.settings.nextSequence = invoice.sequence + 1;
+      if (invoice.accountType === 'savings') {
+        if (invoice.sequence >= Number(store.settings.nextNonGstSequence || 1)) {
+          store.settings.nextNonGstSequence = invoice.sequence + 1;
+        }
+      } else if (invoice.sequence >= store.settings.nextSequence) {
+        store.settings.nextSequence = invoice.sequence + 1;
+      }
       save(store);
       return json(invoice, 201);
     }
