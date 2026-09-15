@@ -112,6 +112,8 @@ export function invoiceStyles() {
       font-weight: 700;
     }
     .section { margin-top: 20px; }
+    .section.footer-grid,
+    .section.terms { margin-top: 40px; }
     .section p { margin: 0; }
     .two-col {
       display: grid;

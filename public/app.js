@@ -289,6 +289,7 @@ function invoiceDocumentHtml(invoice, options = {}) {
       h1{color:#002060;margin:0;font-size:22pt;font-weight:700;line-height:1.05}
       .kind{color:#666;font-size:10pt;font-weight:700;letter-spacing:0.6px;margin-top:1px}
       .section{margin-top:20px}
+      .section.footer,.section.terms{margin-top:40px}
       .grid{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;row-gap:0;margin:0;align-items:start}
       table.items{width:100%;border-collapse:separate;border-spacing:2px;background:#fff;table-layout:fixed;font-size:11pt;margin:0}
       table.items col.col-no{width:8%}

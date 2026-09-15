@@ -137,6 +137,7 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.ok(page.includes('<b>Bill To</b>'));
   assert.ok(page.includes('<b>Bank Details</b>'));
   assert.ok(page.includes('margin-top:20px'));
+  assert.ok(page.includes('margin-top:40px'));
   assert.ok(page.includes('PROJECT TITLE'));
   assert.ok(page.includes('border-spacing:2px'));
   assert.ok(page.includes('col-desc'));
