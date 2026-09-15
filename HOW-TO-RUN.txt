@@ -1,0 +1,43 @@
+Introis Invoice Generator
+=========================
+
+Double-click this file (full UI, no npm):
+  index.html
+
+Click **Save to Drive** after connecting Gmail in Settings to upload the PDF
+to a Drive folder you choose.
+
+Google Drive
+------------
+1. Open https://console.cloud.google.com and create a project
+2. Enable the Google Drive API
+3. APIs & Services → OAuth consent screen (External is fine; add your Gmail as a test user)
+4. Create an OAuth client ID of type Web application
+5. Add Authorized JavaScript origins for how you open the app, for example:
+     http://127.0.0.1:4173
+     http://localhost:3000
+6. Paste the Client ID into Settings → Google Drive → Connect Gmail
+7. Choose Drive folder, then use Save to Drive on a new or saved invoice
+
+Google sign-in needs Chrome or Edge over http://, not a double-clicked file:// page.
+
+Bank account:
+  Current  = GST invoice (SGST 9% + CGST 9%)
+  Savings  = Non-GST invoice (SGST and CGST ₹0.00)
+
+Terms and Conditions print on page 1, in the space under the signatures.
+
+It is also saved as Introis-Invoice-Generator.html and public/index.html.
+All three are the complete app with styles built in.
+
+Visual Studio Code
+------------------
+1. File → Open Folder… (the unzipped folder or this repo)
+2. Click **index.html at the folder root** (not public/shell.html)
+3. Right-click → Open with Live Server
+   or right-click → Reveal in Finder → double-click in Chrome or Edge
+
+Do not open raw files such as public/shell.html or public/app.js as the app.
+After Live Server starts you should see a navy sidebar, a form on the left,
+and an invoice preview on the right. Click **Download PDF** — do not use
+Print if you want a single page with terms under the signatures.
