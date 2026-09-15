@@ -197,13 +197,13 @@ export function invoiceStyles() {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 24px;
-      margin-top: 0;
       align-items: start;
       page-break-inside: avoid;
       break-inside: avoid;
       break-after: avoid;
       page-break-after: avoid;
     }
+    .section.footer-grid { margin-top: 30pt; }
     .accept .section-title {
       margin: 0;
       line-height: 1.2;

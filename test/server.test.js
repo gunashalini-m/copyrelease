@@ -139,6 +139,8 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.ok(page.includes('margin-top:15pt'));
   assert.ok(page.includes('row-gap:15pt'));
   assert.ok(page.includes('padding-bottom:15pt'));
+  assert.ok(page.includes('margin-top:30pt'));
+  assert.ok(html.includes('margin-top:30pt'));
   assert.ok(page.includes('PROJECT TITLE'));
   assert.ok(page.includes('border-spacing:2px'));
   assert.ok(page.includes('col-desc'));
