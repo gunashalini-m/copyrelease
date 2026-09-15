@@ -176,7 +176,11 @@ test('health, numbering, clients, and invoice snapshots', async (t) => {
   assert.ok(page.includes('html2canvas'));
   assert.ok(page.includes('srcdoc'));
   assert.ok(page.includes('STANDALONE'));
-  assert.ok(page.includes('Savings — Non-GST invoice'));
+  assert.ok(page.includes('preview-scaler'));
+  assert.ok(page.includes('fitLivePreview'));
+  assert.ok(page.includes('table-scroll'));
+  assert.ok(page.includes('@media (max-width: 699px)'));
+  assert.ok(page.includes('@container (max-width: 560px)'));
   assert.ok(!page.includes('Custom fields'));
   assert.ok(!page.includes('page-break terms'));
 });

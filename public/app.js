@@ -217,6 +217,26 @@ function updateNumberFields() {
   document.getElementById('next-number-label').textContent = invoiceNumber(numbering.nextSequence);
 }
 
+function fitLivePreview() {
+  const iframe = document.getElementById('live-preview');
+  const wrap = iframe?.parentElement;
+  if (!iframe || !wrap?.classList.contains('preview-scaler')) {
+    return;
+  }
+  try {
+    const doc = iframe.contentDocument;
+    const pageWidth = 794;
+    const height = Math.max(doc?.documentElement?.scrollHeight || 0, doc?.body?.scrollHeight || 0, 1);
+    iframe.style.width = `${pageWidth}px`;
+    iframe.style.height = `${height}px`;
+    const scale = Math.min(1, wrap.clientWidth / pageWidth);
+    iframe.style.transform = `scale(${scale})`;
+    wrap.style.height = `${Math.ceil(height * scale)}px`;
+  } catch (error) {
+    // iframe document may not be ready yet
+  }
+}
+
 async function refreshPreview() {
   if (!settings) {
     return;
@@ -241,11 +261,7 @@ async function refreshPreview() {
     const invoice = await api('/api/invoices/preview', { method: 'POST', body: formPayload() });
     const iframe = document.getElementById('live-preview');
     iframe.onload = () => {
-      try {
-        const doc = iframe.contentDocument;
-        const height = Math.max(doc?.documentElement?.scrollHeight || 0, doc?.body?.scrollHeight || 0);
-        if (height) iframe.style.height = `${height + 8}px`;
-      } catch (error) {}
+      fitLivePreview();
     };
     iframe.srcdoc = previewSrcDoc(invoice);
   } catch {
@@ -811,6 +827,17 @@ async function init() {
     applyClient(clients[0]);
   }
   refreshPreview();
+}
+
+window.addEventListener('resize', () => {
+  window.clearTimeout(window.__fitPreviewTimer);
+  window.__fitPreviewTimer = setTimeout(fitLivePreview, 100);
+});
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    window.clearTimeout(window.__fitPreviewTimer);
+    window.__fitPreviewTimer = setTimeout(fitLivePreview, 100);
+  });
 }
 
 init();

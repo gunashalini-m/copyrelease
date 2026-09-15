@@ -110,7 +110,9 @@
 
         <aside class="preview-wrap">
           <h2>Live preview</h2>
-          <iframe id="live-preview" title="Invoice preview"></iframe>
+          <div class="preview-scaler">
+            <iframe id="live-preview" title="Invoice preview"></iframe>
+          </div>
         </aside>
       </div>
     </section>
@@ -118,19 +120,21 @@
     <section id="view-history" class="view hidden">
       <div class="panel">
         <h1>Saved invoices</h1>
-        <table class="data">
-          <thead>
-            <tr>
-              <th>Number</th>
-              <th>Date</th>
-              <th>Client</th>
-              <th>Account</th>
-              <th>Total</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="invoice-rows"></tbody>
-        </table>
+        <div class="table-scroll">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Number</th>
+                <th>Date</th>
+                <th>Client</th>
+                <th>Account</th>
+                <th>Total</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="invoice-rows"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 
